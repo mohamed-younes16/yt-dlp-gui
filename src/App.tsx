@@ -217,7 +217,9 @@ export default function App() {
     setConfirmOpen(false);
     setProgress({ status: "starting", phase: "video", percent: 0 });
     const isTrimmed =
-      trim && info.duration && (trim[0] > 0.5 || trim[1] < (info.duration as number) - 0.5);
+      trim &&
+      info.duration &&
+      (trim[0] > 0.5 || trim[1] < (info.duration as number) - 0.5);
     try {
       await startDownload({
         url: `https://www.youtube.com/watch?v=${info.id}`,
@@ -310,7 +312,7 @@ export default function App() {
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <MagicRings
             color="#00ff02"
-            colorTwo="#00dfff"
+            colorTwo="#fff399"
             ringCount={7}
             speed={0.6}
             attenuation={11.5}
@@ -365,7 +367,11 @@ export default function App() {
               size="icon"
               className={`size-8 rounded-full border-2 shadow-sm transition-colors ${deps && deps.hasYtdlp && deps.hasFfmpeg ? "border-green-500/40 bg-green-50 dark:bg-green-950/30" : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 animate-pulse"}`}
               onClick={() => setDepsOpen(true)}
-              title={deps && deps.hasYtdlp && deps.hasFfmpeg ? "Dependencies OK — click for details" : "Missing dependencies — click to fix"}
+              title={
+                deps && deps.hasYtdlp && deps.hasFfmpeg
+                  ? "Dependencies OK — click for details"
+                  : "Missing dependencies — click to fix"
+              }
             >
               {deps && deps.hasYtdlp && deps.hasFfmpeg ? (
                 <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
@@ -387,7 +393,9 @@ export default function App() {
                   shineColor="var(--primary)"
                 />
               ) : (
-                <span className="text-lg font-bold tracking-tight sm:text-xl text-foreground">ytdl-gui</span>
+                <span className="text-lg font-bold tracking-tight sm:text-xl text-foreground">
+                  ytdl-gui
+                </span>
               )}
             </button>
           </div>
@@ -501,7 +509,10 @@ export default function App() {
                         Rings = shader (GPU) · Lite = CSS (~0% GPU)
                       </span>
                     </div>
-                    <Select value={bgMode} onValueChange={(v) => setBgMode(v as any)}>
+                    <Select
+                      value={bgMode}
+                      onValueChange={(v) => setBgMode(v as any)}
+                    >
                       <SelectTrigger className="w-[140px]">
                         <SelectValue />
                       </SelectTrigger>
@@ -519,16 +530,31 @@ export default function App() {
                         Animated logo (per-frame)
                       </span>
                     </div>
-                    <Switch checked={shinyEnabled} onCheckedChange={setShinyEnabled} />
+                    <Switch
+                      checked={shinyEnabled}
+                      onCheckedChange={setShinyEnabled}
+                    />
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-3">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm font-medium">Dependencies</span>
                       <span className="text-muted-foreground text-xs">
-                        {deps ? (deps.hasYtdlp && deps.hasFfmpeg ? "yt-dlp + ffmpeg ready" : !deps.hasYtdlp && !deps.hasFfmpeg ? "yt-dlp & ffmpeg missing" : !deps.hasYtdlp ? "yt-dlp missing" : "ffmpeg missing") : "Checking..."}
+                        {deps
+                          ? deps.hasYtdlp && deps.hasFfmpeg
+                            ? "yt-dlp + ffmpeg ready"
+                            : !deps.hasYtdlp && !deps.hasFfmpeg
+                              ? "yt-dlp & ffmpeg missing"
+                              : !deps.hasYtdlp
+                                ? "yt-dlp missing"
+                                : "ffmpeg missing"
+                          : "Checking..."}
                       </span>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setDepsOpen(true)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDepsOpen(true)}
+                    >
                       {deps && deps.hasYtdlp && deps.hasFfmpeg ? "View" : "Fix"}
                     </Button>
                   </div>
@@ -663,7 +689,9 @@ export default function App() {
                   shineColor="var(--primary)"
                 />
               ) : (
-                <span className="text-center text-5xl font-bold tracking-tight sm:text-6xl text-foreground">ytdl-gui</span>
+                <span className="text-center text-5xl font-bold tracking-tight sm:text-6xl text-foreground">
+                  ytdl-gui
+                </span>
               )}
               <p className="text-muted-foreground -mt-3 max-w-sm text-center text-sm">
                 Paste a link — preview the thumbnail, see file sizes, pick
@@ -797,7 +825,12 @@ export default function App() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <DependencyDialog open={depsOpen} status={deps} onRecheck={recheckDeps} onOpenChange={setDepsOpen} />
+      <DependencyDialog
+        open={depsOpen}
+        status={deps}
+        onRecheck={recheckDeps}
+        onOpenChange={setDepsOpen}
+      />
       <Toaster position="bottom-center" richColors />
     </main>
   );
