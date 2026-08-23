@@ -105,21 +105,51 @@ fn extract_info(value: &serde_json::Value) -> VideoInfo {
 
 #[tauri::command]
 pub fn fetch_metadata(url: String) -> Result<VideoInfo, String> {
-    let mut cmd = std::process::Command::new("yt-dlp");
-    cmd.args(["-J", "--no-playlist", "--skip-download", &url]);
-    hide_window(&mut cmd);
-
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Could not run yt-dlp. Is it installed and on PATH? ({e})"))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("yt-dlp failed: {}", stderr.trim()));
+    // Try with --js-runtimes bun first (fixes SABR on newer yt-dlp), fallback without for older yt-dlp
+    let args_sets: Vec<Vec<&str>> = vec![
+        vec!["-J", "--no-playlist", "--skip-download", "--js-runtimes", "bun"],
+        vec!["-J", "--no-playlist", "--skip-download"],
+    ];
+    let mut last_err = String::new();
+    let mut json: Option<serde_json::Value> = None;
+    for args in args_sets {
+        let mut cmd = std::process::Command::new("yt-dlp");
+        let mut full_args = args.clone();
+        full_args.push(&url);
+        cmd.args(&full_args);
+        hide_window(&mut cmd);
+        let output = cmd
+            .output()
+            .map_err(|e| format!("Could not run yt-dlp. Is it installed and on PATH? ({e})"))?;
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        // If yt-dlp doesn't know --js-runtimes, retry without it
+        if !output.status.success() && stderr.contains("no such option") {
+            last_err = stderr.trim().to_string();
+            continue;
+        }
+        // Try to parse stdout as JSON even if status is non-zero (warnings like SABR are on stderr but JSON is still valid)
+        if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
+            // Check if JSON is actually an error object without formats? Still try to use it
+            json = Some(v);
+            // If status was success, or JSON parsed, break
+            if output.status.success() || stderr.contains("SABR") || stderr.contains("WARNING") {
+                break;
+            }
+            break;
+        }
+        if !output.status.success() {
+            last_err = stderr.trim().to_string();
+            continue;
+        }
+        last_err = format!("Could not parse yt-dlp output");
     }
-
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Could not parse yt-dlp output: {e}"))?;
+    let json = json.ok_or_else(|| {
+        if last_err.is_empty() {
+            "Could not parse yt-dlp output".to_string()
+        } else {
+            format!("yt-dlp failed: {}", last_err)
+        }
+    })?;
 
     // Playlists return "entries"; take the first one.
     let info = if json["entries"].is_array() {

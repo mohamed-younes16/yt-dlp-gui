@@ -129,7 +129,7 @@ fn read_progress(
             if let Some(p) = parse_progress_line(&line, phase, last_file.clone()) {
                 emit(app, p);
             }
-        } else if line.starts_with("ERROR:") || line.starts_with("yt-dlp: error") {
+        } else if line.starts_with("ERROR:") || line.starts_with("yt-dlp: error") || line.contains("no such option") {
             error = Some(line.trim().to_string());
         }
     }
@@ -141,8 +141,6 @@ fn parse_progress_line(
     phase: &str,
     file: Option<String>,
 ) -> Option<DownloadProgress> {
-    // Expected shape:
-    // [download]  42.3% of   10.00MiB at    2.00MiB/s ETA 00:05
     let tokens: Vec<&str> = line.split_whitespace().collect();
     let mut percent = None;
     let mut speed = None;
@@ -184,7 +182,6 @@ fn run_pass(
             url.to_string(),
             "--newline".to_string(),
             "--no-playlist".to_string(),
-            
             "-P".to_string(),
             folder.to_string(),
         ],
@@ -221,7 +218,7 @@ fn run_pass(
         let mut guard = state.child.lock().unwrap();
         match guard.take() {
             Some(mut c) => c.wait().map(|s| s.success()).unwrap_or(false),
-            None => false, // already taken by cancel
+            None => false,
         }
     };
 
@@ -288,19 +285,78 @@ fn finish(app: &AppHandle, state: &DownloadState, result: Result<(), String>) ->
     }
 }
 
+fn build_passes(
+    mode: &str,
+    quality: u32,
+    container: &str,
+    audio_bitrate: u32,
+    audio_format: &str,
+    extras: Vec<String>,
+    trim_args: Vec<String>,
+    with_js: bool,
+) -> Result<Vec<(String, Vec<String>)>, String> {
+    let mut js_extra: Vec<String> = if with_js {
+        vec!["--js-runtimes".to_string(), "bun".to_string()]
+    } else {
+        vec![]
+    };
+    let passes: Vec<(String, Vec<String>)> = match mode {
+        "video" => {
+            let mut args = video_quality_args(quality, container);
+            args.append(&mut extras.clone());
+            args.extend(trim_args.clone());
+            args.extend(js_extra.clone());
+            vec![("video".to_string(), args)]
+        }
+        "audio" => {
+            let mut args = audio_quality_args(audio_bitrate, audio_format);
+            args.append(&mut extras.clone());
+            args.extend(trim_args.clone());
+            args.extend(js_extra.clone());
+            vec![("audio".to_string(), args)]
+        }
+        "both" => {
+            let mut video_args = video_quality_args(quality, container);
+            video_args.extend(extras.clone());
+            video_args.extend(trim_args.clone());
+            video_args.extend(js_extra.clone());
+            let mut audio_args = audio_quality_args(audio_bitrate, audio_format);
+            audio_args.extend(extras.clone());
+            audio_args.extend(trim_args.clone());
+            audio_args.extend(js_extra.clone());
+            vec![
+                ("video".to_string(), video_args),
+                ("audio".to_string(), audio_args),
+            ]
+        }
+        "thumbnail" => {
+            let t_args = vec![
+                "--write-thumbnail".to_string(),
+                "--convert-thumbnails".to_string(),
+                "jpg".to_string(),
+                "--skip-download".to_string(),
+            ];
+            vec![("video".to_string(), t_args)]
+        }
+        other => return Err(format!("Unknown mode: {other}")),
+    };
+    let _ = js_extra;
+    Ok(passes)
+}
+
 #[tauri::command]
 pub fn start_download(
     app: AppHandle,
     url: String,
-    mode: String,            // "video" | "audio" | "both" | "thumbnail"
-    quality: u32,            // video height cap (e.g. 1080)
-    container: String,       // video container: mp4 | mkv | webm
-    audio_bitrate: u32,      // audio bitrate kbps (e.g. 320)
-    audio_format: String,    // audio format: mp3 | m4a | opus | wav
+    mode: String,
+    quality: u32,
+    container: String,
+    audio_bitrate: u32,
+    audio_format: String,
     save_thumbnail: bool,
     embed_thumbnail: bool,
     embed_metadata: bool,
-    folder: Option<String>, // empty/None -> user's Downloads
+    folder: Option<String>,
     trim_start: Option<f64>,
     trim_end: Option<f64>,
 ) -> Result<(), String> {
@@ -318,69 +374,48 @@ pub fn start_download(
         .filter(|f| !f.trim().is_empty())
         .unwrap_or_else(default_folder);
 
-    let mut extras = extras_args(save_thumbnail, embed_thumbnail, embed_metadata);
+    let extras = extras_args(save_thumbnail, embed_thumbnail, embed_metadata);
 
-    // trim via yt-dlp download-sections (requires ffmpeg)
     let mut trim_args: Vec<String> = Vec::new();
     if let (Some(s), Some(e)) = (trim_start, trim_end) {
         if e > s && s >= 0.0 {
             trim_args.push("--download-sections".to_string());
-            // yt-dlp accepts seconds or HH:MM:SS; use integer seconds
             trim_args.push(format!("*{}-{}", s as u64, e as u64));
         }
     }
 
-    let passes: Vec<(String, Vec<String>)> = match mode.as_str() {
-        "video" => {
-            let mut args = video_quality_args(quality, &container);
-            args.append(&mut extras);
-            args.extend(trim_args.clone());
-            vec![("video".to_string(), args)]
-        }
-        "audio" => {
-            let mut args = audio_quality_args(audio_bitrate, &audio_format);
-            args.append(&mut extras);
-            args.extend(trim_args.clone());
-            vec![("audio".to_string(), args)]
-        }
-        "both" => {
-            let mut video_args = video_quality_args(quality, &container);
-            let extra_video = extras.clone();
-            video_args.extend(extra_video);
-            video_args.extend(trim_args.clone());
-            let mut audio_args = audio_quality_args(audio_bitrate, &audio_format);
-            audio_args.append(&mut extras);
-            audio_args.extend(trim_args.clone());
-            vec![
-                ("video".to_string(), video_args),
-                ("audio".to_string(), audio_args),
-            ]
-        }
-        "thumbnail" => {
-            let t_args = vec![
-                "--write-thumbnail".to_string(),
-                "--convert-thumbnails".to_string(),
-                "jpg".to_string(),
-                "--skip-download".to_string(),
-            ];
-            vec![("video".to_string(), t_args)]
-        }
-        other => {
-            *state.busy.lock().unwrap() = false;
-            return Err(format!("Unknown mode: {other}"));
-        }
-    };
+    // First try with --js-runtimes bun (fixes SABR), fallback without for older yt-dlp
+    let try_with_js = build_passes(&mode, quality, &container, audio_bitrate, &audio_format, extras.clone(), trim_args.clone(), true)?;
+    let try_without_js = build_passes(&mode, quality, &container, audio_bitrate, &audio_format, extras, trim_args, false)?;
 
-    let result = (|| {
-        for (phase, args) in passes {
-            if let Err(e) = run_pass(&app, &state, &url, args, &folder, &phase) {
-                return finish(&app, &state, Err(e));
+    let mut last_err: Option<String> = None;
+    for passes in [try_with_js, try_without_js] {
+        let result = (|| {
+            for (phase, args) in passes.clone() {
+                if let Err(e) = run_pass(&app, &state, &url, args, &folder, &phase) {
+                    // If error is about unknown --js-runtimes, try next set
+                    if e.contains("no such option") {
+                        return Err(format!("RETRY_JS:{}", e));
+                    }
+                    return Err(e);
+                }
             }
-        }
-        finish(&app, &state, Ok(()))
-    })();
+            Ok(())
+        })();
 
-    result
+        match result {
+            Ok(()) => return finish(&app, &state, Ok(())),
+            Err(e) if e.starts_with("RETRY_JS:") => {
+                last_err = Some(e);
+                // clear busy flag will be handled by next iteration's finish? Need to keep busy true for retry
+                *state.busy.lock().unwrap() = true;
+                continue;
+            }
+            Err(e) => return finish(&app, &state, Err(e)),
+        }
+    }
+
+    finish(&app, &state, Err(last_err.unwrap_or_else(|| "yt-dlp failed".to_string())))
 }
 
 #[tauri::command]
