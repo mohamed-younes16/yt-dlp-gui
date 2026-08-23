@@ -162,5 +162,12 @@ pub fn fetch_metadata(url: String) -> Result<VideoInfo, String> {
         extract_info(&json)
     };
 
+    if info.id.is_empty() || info.title == "Unknown title" {
+        return Err(format!(
+            "yt-dlp failed: could not extract video info (try updating yt-dlp: winget upgrade yt-dlp.yt-dlp or yt-dlp --update). Raw title: {}",
+            info.title
+        ));
+    }
+
     Ok(info)
 }
