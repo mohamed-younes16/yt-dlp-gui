@@ -184,8 +184,7 @@ fn run_pass(
             url.to_string(),
             "--newline".to_string(),
             "--no-playlist".to_string(),
-            "--js-runtimes".to_string(),
-            "bun".to_string(),
+            
             "-P".to_string(),
             folder.to_string(),
         ],

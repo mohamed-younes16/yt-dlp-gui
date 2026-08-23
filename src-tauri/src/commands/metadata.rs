@@ -106,7 +106,7 @@ fn extract_info(value: &serde_json::Value) -> VideoInfo {
 #[tauri::command]
 pub fn fetch_metadata(url: String) -> Result<VideoInfo, String> {
     let mut cmd = std::process::Command::new("yt-dlp");
-    cmd.args(["-J", "--no-playlist", "--skip-download", "--js-runtimes", "bun", &url]);
+    cmd.args(["-J", "--no-playlist", "--skip-download", &url]);
     hide_window(&mut cmd);
 
     let output = cmd
