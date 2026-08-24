@@ -49,10 +49,17 @@ fn default_folder() -> String {
 }
 
 fn video_quality_args(quality: u32, container: &str) -> Vec<String> {
-    let mut args = vec![
-        "-f".to_string(),
-        format!("bv*[height<={q}]+ba/b[height<={q}]", q = quality),
-    ];
+    // For MP4 prefer universally-supported codecs (H.264 + AAC) so Windows
+    // Media Player / QuickTime etc. can play it. VLC plays anything, but
+    // YouTube's default best is often VP9/AV1 + Opus which is rare in MP4.
+    let format_selector = match container {
+        "mp4" => format!(
+            "bv*[ext=mp4][vcodec^=avc1][height<={q}]+ba[ext=m4a][acodec^=mp4a]/b[ext=mp4][height<={q}]/bv*[height<={q}]+ba/b[height<={q}]",
+            q = quality
+        ),
+        _ => format!("bv*[height<={q}]+ba/b[height<={q}]", q = quality),
+    };
+    let mut args = vec!["-f".to_string(), format_selector];
     match container {
         "mkv" | "webm" => {
             args.push("--merge-output-format".into());
