@@ -1,4 +1,13 @@
-import { FolderOpen, History, MoreVertical, RotateCcw, Trash2 } from "lucide-react";
+import { useState } from "react";
+import {
+  FolderOpen,
+  History,
+  Link2,
+  MoreVertical,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +17,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { revealInFolder } from "@/lib/tauri";
 import type { HistoryEntry } from "@/lib/types";
 
@@ -19,6 +33,7 @@ interface HistoryListProps {
 }
 
 function formatDate(ts: number): string {
+  if (!Number.isFinite(ts)) return "";
   const d = new Date(ts);
   return d.toLocaleDateString(undefined, {
     month: "short",
@@ -26,6 +41,14 @@ function formatDate(ts: number): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function thumbFallback(entry: HistoryEntry): string | null {
+  // maxresdefault 404s often — fall back to hq once per image.
+  if (entry.thumbnail?.includes("maxresdefault")) {
+    return entry.thumbnail.replace("maxresdefault", "hqdefault");
+  }
+  return null;
 }
 
 export function HistoryList({
@@ -36,7 +59,7 @@ export function HistoryList({
 }: HistoryListProps) {
   if (entries.length === 0) {
     return (
-      <div className="text-muted-foreground flex flex-col items-center gap-2 py-16 text-sm">
+      <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 text-sm">
         <History className="size-8 opacity-50" />
         No downloads yet — your history will appear here
       </div>
@@ -44,17 +67,17 @@ export function HistoryList({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-between">
         <p className="text-muted-foreground text-sm">
           {entries.length} download{entries.length === 1 ? "" : "s"}
         </p>
         <Button variant="ghost" size="sm" onClick={onClearAll}>
-          <Trash2 className="size-4" />
+          <Trash2 />
           Clear all
         </Button>
       </div>
-      <ScrollArea className="h-[calc(100dvh-320px)] min-h-64 pr-3">
+      <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-3">
         <div className="flex flex-col gap-2">
           {entries.map((entry, i) => (
             <HistoryRow
@@ -82,14 +105,28 @@ function HistoryRow({
   onRedownload: (entry: HistoryEntry) => void;
   onRemove: (index: number) => void;
 }) {
+  const [failed, setFailed] = useState(false);
+  const src = !failed ? entry.thumbnail : thumbFallback(entry) ?? entry.thumbnail;
+  const revealTarget = entry.path ?? entry.folder;
+
+  function copyLink() {
+    navigator.clipboard
+      .writeText(entry.url)
+      .then(() => toast.success("Link copied"))
+      .catch(() => {});
+  }
+
   return (
-    <div className="group hover:bg-accent/50 flex items-center gap-3 rounded-xl border p-2.5 transition-colors">
-      {entry.thumbnail ? (
+    <div className="hover:bg-accent/40 flex items-center gap-3 rounded-lg border p-3 transition-colors">
+      {src ? (
         <img
-          src={entry.thumbnail}
+          src={src}
           alt=""
           className="aspect-video w-24 shrink-0 rounded-md border object-cover"
           referrerPolicy="no-referrer"
+          onError={() => {
+            if (!failed && thumbFallback(entry)) setFailed(true);
+          }}
         />
       ) : (
         <div className="bg-muted aspect-video w-24 shrink-0 rounded-md border" />
@@ -97,7 +134,7 @@ function HistoryRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{entry.title}</p>
         <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] uppercase">
+          <Badge variant="secondary" className="h-5 px-1.5 text-micro uppercase">
             {entry.mode}
           </Badge>
           <span>{entry.qualityLabel}</span>
@@ -106,45 +143,47 @@ function HistoryRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Re-download"
-          onClick={() => onRedownload(entry)}
-        >
-          <RotateCcw className="size-4" />
-        </Button>
-        {entry.folder && (
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Show in folder"
-            onClick={() => revealInFolder(entry.folder!).catch(() => {})}
-          >
-            <FolderOpen className="size-4" />
-          </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Re-download"
+              onClick={() => onRedownload(entry)}
+            >
+              <RotateCcw />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Re-download</TooltipContent>
+        </Tooltip>
+        {revealTarget && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Show in folder"
+                onClick={() => revealInFolder(revealTarget).catch(() => {})}
+              >
+                <FolderOpen />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Show in folder</TooltipContent>
+          </Tooltip>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="size-4" />
+            <Button variant="ghost" size="icon-sm" aria-label="More actions">
+              <MoreVertical />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onRedownload(entry)}>
-              <RotateCcw className="size-4" />
-              Re-download
+            <DropdownMenuItem onClick={copyLink}>
+              <Link2 />
+              Copy link
             </DropdownMenuItem>
-            {entry.folder && (
-              <DropdownMenuItem
-                onClick={() => revealInFolder(entry.folder!).catch(() => {})}
-              >
-                <FolderOpen className="size-4" />
-                Show in folder
-              </DropdownMenuItem>
-            )}
             <DropdownMenuItem variant="destructive" onClick={() => onRemove(index)}>
-              <Trash2 className="size-4" />
+              <Trash2 />
               Remove from history
             </DropdownMenuItem>
           </DropdownMenuContent>

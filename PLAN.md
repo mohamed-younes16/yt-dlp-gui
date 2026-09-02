@@ -73,5 +73,19 @@ ytdl-gui/
 - Video container choice: MP4 / MKV / WEBM
 - Audio formats: MP3 / M4A / OPUS / WAV
 - Thumbnail options: save as JPG, embed into file, embed metadata
-- ReactBits polish: Aurora background, ShinyText logo, SpotlightCard hover
+- ReactBits polish: Magic Rings background, ShinyText logo, SpotlightCard hover
 - Tabs layout (Download / History), dark-light toggle persisted via localStorage
+
+## v0.2.0 — correctness pass
+
+- [x] All yt-dlp spawns async off the main thread — Cancel works mid-download
+- [x] stderr drained (no pipe deadlock) and surfaced as real error messages
+- [x] Timeouts + stall watchdog; tree-kill on cancel (no orphan ffmpeg); procs die on exit
+- [x] Real URLs end-to-end (no fabricated youtube.com/watch links) — any yt-dlp site works
+- [x] Queue + global download bar (survives view switches, always cancellable)
+- [x] Subtitles (EN SRT), playlist mode, browser sign-in cookies
+- [x] Download options persisted; history atomic + versioned + file path recorded
+- [x] Single-instance guard; URL validation (`--exec` injection blocked) + CSP
+- [x] Workspace scrolls at default window size; min window size; drawer scrolls
+- [x] Deps text banner, tooltips everywhere, confirm before clearing history,
+      reduced-motion support, theme boot without FOUC, Ctrl+L / Ctrl+, shortcuts

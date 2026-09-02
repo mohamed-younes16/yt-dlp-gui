@@ -10,9 +10,17 @@ interface TrimSliderProps {
   disabled?: boolean;
 }
 
-export function TrimSlider({ duration, value, onChange, disabled }: TrimSliderProps) {
-  const [start, end] = value;
-  const full = start <= 0.5 && end >= duration - 0.5;
+export function TrimSlider({
+  duration,
+  value,
+  onChange,
+  disabled,
+}: TrimSliderProps) {
+  const max = Math.floor(duration);
+  // Keep the thumbs inside [0, max] — a stale value must not render off-rail.
+  const start = Math.min(Math.max(value[0], 0), max);
+  const end = Math.min(Math.max(value[1], start), max);
+  const full = start <= 0 && end >= max;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border bg-card p-4">
@@ -21,30 +29,38 @@ export function TrimSlider({ duration, value, onChange, disabled }: TrimSliderPr
           <Scissors className="size-4" />
           Trim
           {!full && (
-            <span className="bg-primary/15 text-primary rounded-full px-1.5 py-0.5 text-[10px]">
+            <span className="bg-primary/15 text-primary rounded-full px-1.5 py-0.5 text-micro">
               {formatDuration(end - start)}
             </span>
           )}
         </span>
         <span className="text-muted-foreground flex items-center gap-1 text-xs tabular-nums">
-          <Clock className="size-3" />
-          {formatDuration(start)} — {formatDuration(end)} / {formatDuration(duration)}
+          <Clock className="size-3.5" />
+          {formatDuration(start)} — {formatDuration(end)} /{" "}
+          {formatDuration(duration)}
         </span>
       </div>
 
       <Slider
-        value={value}
+        value={[start, end]}
         onValueChange={(v) => onChange([v[0] as number, v[1] as number])}
         min={0}
-        max={Math.floor(duration)}
+        max={max}
         step={1}
         disabled={disabled}
       />
 
       <div className="flex items-center justify-between">
-        <span className="text-muted-foreground text-[11px]">Drag both ends to slice before downloading</span>
+        <span className="text-muted-foreground text-micro">
+          Drag both ends to slice before downloading
+        </span>
         {!full && (
-          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => onChange([0, Math.floor(duration)])} disabled={disabled}>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onChange([0, max])}
+            disabled={disabled}
+          >
             Reset
           </Button>
         )}

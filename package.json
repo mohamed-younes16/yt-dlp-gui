@@ -1,7 +1,7 @@
 {
   "name": "ytdl-gui",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,13 +14,12 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.2",
+    "@tauri-apps/plugin-notification": "^2.4.0",
     "@tauri-apps/plugin-opener": "^2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.33.0",
     "motion": "^13.1.1",
-    "next-themes": "^0.4.6",
-    "ogl": "^1.0.11",
     "radix-ui": "^1.6.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
