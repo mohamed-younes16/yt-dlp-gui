@@ -121,7 +121,8 @@ const PILL =
 
 function qualityLabel(s: FormatSettings): string {
   if (s.mode === "thumbnail") return "THUMBNAIL · JPG";
-  if (s.mode === "audio") return `${s.audioFormat.toUpperCase()} · ${s.audioBitrate}kbps`;
+  if (s.mode === "audio")
+    return `${s.audioFormat.toUpperCase()} · ${s.audioBitrate}kbps`;
   if (s.mode === "both")
     return `${s.quality}p ${s.container.toUpperCase()} + ${s.audioFormat.toUpperCase()}`;
   return `${s.quality}p ${s.container.toUpperCase()}`;
@@ -186,10 +187,10 @@ export default function App() {
   );
   const queuedJobs = jobs.filter((j) => j.status === "queued");
   const terminalJobs = jobs.filter(
-    (j) => j.status === "done" || j.status === "cancelled" || j.status === "error",
+    (j) =>
+      j.status === "done" || j.status === "cancelled" || j.status === "error",
   );
-  const displayJob =
-    activeJob ?? terminalJobs[terminalJobs.length - 1] ?? null;
+  const displayJob = activeJob ?? terminalJobs[terminalJobs.length - 1] ?? null;
   const downloading = !!activeJob;
   const depsMissing = !deps || !deps.hasYtdlp || !deps.hasFfmpeg;
 
@@ -340,6 +341,28 @@ export default function App() {
     });
   }
 
+  function recordFetch(info: VideoInfo, settings: FormatSettings) {
+    const entry: HistoryEntry = {
+      videoId: info.id,
+      title: info.title,
+      url: info.url,
+      channel: info.uploader,
+      thumbnail: info.thumbnail,
+      mode: settings.mode,
+      qualityLabel: qualityLabel(settings),
+      folder: settings.folder ?? undefined,
+      downloadedAt: Date.now(),
+    };
+    setHistory((prev) => {
+      const next = [
+        entry,
+        ...prev.filter((e) => !(e.url === entry.url && e.mode === entry.mode)),
+      ].slice(0, 200);
+      saveHistory(next).catch(() => {});
+      return next;
+    });
+  }
+
   function persistHistory(next: HistoryEntry[]) {
     setHistory(next);
     saveHistory(next).catch(() => {});
@@ -364,7 +387,8 @@ export default function App() {
     if (!input) return;
     // Search mode with free text → results list. Pasted links (or manual
     // ytsearch: prefixes) always resolve directly.
-    const isDirect = /^https?:\/\//i.test(input) || /^ytsearch(1|all)?:/i.test(input);
+    const isDirect =
+      /^https?:\/\//i.test(input) || /^ytsearch(1|all)?:/i.test(input);
     if (inputMode === "search" && !isDirect) return handleSearch(input);
     const parts = input.split(/\s+/).filter(Boolean);
     const target = parts[0] ?? "";
@@ -383,11 +407,15 @@ export default function App() {
       if (seq !== fetchSeqRef.current) return;
       setInfo(result);
       setTrim(
-        result.duration && result.duration > 1 ? [0, Math.floor(result.duration)] : null,
+        result.duration && result.duration > 1
+          ? [0, Math.floor(result.duration)]
+          : null,
       );
+      recordFetch(result, settingsRef.current);
       if (links.length > 1) {
         toast.info(`${links.length} links found`, {
-          description: "Opened the first — fetch each and hit Add to queue to batch.",
+          description:
+            "Opened the first — fetch each and hit Add to queue to batch.",
         });
       }
     } catch (err) {
@@ -464,12 +492,8 @@ export default function App() {
       percent: 0,
     };
     setJobs((js) => [...js, job]);
-    // Clear the workspace so the user can immediately fetch the next link.
-    setInfo(null);
-    setUrl("");
-    setTrim(null);
-    setFetchError(null);
-    setSearchResults(null);
+    // Leave the video page open so the user can download again or tweak
+    // settings — they can navigate away manually via the back button.
   }
 
   // Start the next queued job whenever nothing is running (frontend serializes
@@ -484,7 +508,13 @@ export default function App() {
       js.map((j) => (j.id === next.id ? { ...j, status: "starting" } : j)),
     );
     startDownload(
-      downloadOptionsFrom(next.id, next.info.url, next.settings, next.trim),
+      downloadOptionsFrom(
+        next.id,
+        next.info.url,
+        next.info.title,
+        next.settings,
+        next.trim,
+      ),
     ).catch((err) => {
       const message = String(err).slice(0, 300);
       toast.error("Download failed to start", { description: message });
@@ -551,13 +581,14 @@ export default function App() {
     handleFetch(entry.url);
   }
 
-  const confirmLabel = settings.mode === "thumbnail"
-    ? "THUMBNAIL · JPG"
-    : settings.mode === "audio"
-      ? `${settings.audioFormat.toUpperCase()} · ${settings.audioBitrate} kbps`
-      : settings.mode === "both"
-        ? `${settings.quality}p ${settings.container.toUpperCase()} + audio`
-        : `${settings.quality}p · ${settings.container.toUpperCase()}`;
+  const confirmLabel =
+    settings.mode === "thumbnail"
+      ? "THUMBNAIL · JPG"
+      : settings.mode === "audio"
+        ? `${settings.audioFormat.toUpperCase()} · ${settings.audioBitrate} kbps`
+        : settings.mode === "both"
+          ? `${settings.quality}p ${settings.container.toUpperCase()} + audio`
+          : `${settings.quality}p · ${settings.container.toUpperCase()}`;
 
   const depsMissingText = !deps
     ? "Checking yt-dlp and ffmpeg…"
@@ -573,7 +604,9 @@ export default function App() {
       e.dataTransfer.getData("text/uri-list") ||
       e.dataTransfer.getData("text/plain") ||
       ""
-    ).split(/\r?\n/)[0]?.trim();
+    )
+      .split(/\r?\n/)[0]
+      ?.trim();
     if (/^https?:\/\//i.test(text)) {
       setUrl(text);
       setTab("download");
@@ -730,7 +763,12 @@ export default function App() {
               <div className="flex shrink-0 items-center gap-1">
                 <Drawer open={settingsOpen} onOpenChange={setSettingsOpen}>
                   <DrawerTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label="Settings" title="Settings (Ctrl+,)">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Settings"
+                      title="Settings (Ctrl+,)"
+                    >
                       <Settings />
                     </Button>
                   </DrawerTrigger>
@@ -743,15 +781,29 @@ export default function App() {
                         </DrawerDescription>
                       </div>
                       <DrawerClose asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label="Close settings">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Close settings"
+                        >
                           <X />
                         </Button>
                       </DrawerClose>
                     </DrawerHeader>
                     <ScrollArea className="min-h-0 flex-1">
-                      <div className="flex flex-col gap-3 px-4 pb-6" data-vaul-no-drag>
-                        <SettingsRow title="Theme" description="Toggle dark / light">
-                          <Button variant="outline" size="sm" onClick={() => setDark((d) => !d)}>
+                      <div
+                        className="flex flex-col gap-3 px-4 pb-6"
+                        data-vaul-no-drag
+                      >
+                        <SettingsRow
+                          title="Theme"
+                          description="Toggle dark / light"
+                        >
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDark((d) => !d)}
+                          >
                             {dark ? (
                               <>
                                 <Sun /> Light
@@ -767,7 +819,11 @@ export default function App() {
                           title="Download folder"
                           description={settings.folder ?? "Downloads (default)"}
                         >
-                          <Button variant="outline" size="sm" onClick={handlePickFolder}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handlePickFolder}
+                          >
                             Change
                           </Button>
                         </SettingsRow>
@@ -775,7 +831,7 @@ export default function App() {
                           title="Sign-in cookies"
                           description={
                             settings.cookiesBrowser === "file"
-                              ? settings.cookiesFile ?? "No file picked yet"
+                              ? (settings.cookiesFile ?? "No file picked yet")
                               : "Use a browser's cookies for private / age-restricted videos"
                           }
                         >
@@ -828,7 +884,9 @@ export default function App() {
                         >
                           <Select
                             value={bgMode}
-                            onValueChange={(v) => setBgMode(v as "rings" | "lite" | "off")}
+                            onValueChange={(v) =>
+                              setBgMode(v as "rings" | "lite" | "off")
+                            }
                           >
                             <SelectTrigger className="w-36">
                               <SelectValue />
@@ -863,10 +921,15 @@ export default function App() {
                             size="sm"
                             onClick={() => setDepsOpen(true)}
                           >
-                            {deps && deps.hasYtdlp && deps.hasFfmpeg ? "View" : "Fix"}
+                            {deps && deps.hasYtdlp && deps.hasFfmpeg
+                              ? "View"
+                              : "Fix"}
                           </Button>
                         </SettingsRow>
-                        <SettingsRow title="History" description={`${history.length} saved`}>
+                        <SettingsRow
+                          title="History"
+                          description={`${history.length} saved`}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
@@ -920,29 +983,29 @@ export default function App() {
                     {history.length}
                   </span>
                 </>
-          ) : fetching || searching ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin" />
-              <span className="text-foreground font-semibold">
-                {searching ? "Searching YouTube…" : "Fetching video…"}
-              </span>
-            </>
-          ) : !info && searchResults ? (
-            <>
-              <Button
-                variant="ghost"
-                className="h-6 gap-1.5 px-1 text-sm font-semibold text-foreground"
-                onClick={() => setSearchResults(null)}
-              >
-                <ArrowLeft className="size-3.5" />
-                Search
-              </Button>
-              <span className="text-foreground/40">/</span>
-              <span className="text-foreground line-clamp-1 font-medium">
-                “{searchQuery}”
-              </span>
-            </>
-          ) : !info ? (
+              ) : fetching || searching ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span className="text-foreground font-semibold">
+                    {searching ? "Searching YouTube…" : "Fetching video…"}
+                  </span>
+                </>
+              ) : !info && searchResults ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    className="h-6 gap-1.5 px-1 text-sm font-semibold text-foreground"
+                    onClick={() => setSearchResults(null)}
+                  >
+                    <ArrowLeft className="size-3.5" />
+                    Search
+                  </Button>
+                  <span className="text-foreground/40">/</span>
+                  <span className="text-foreground line-clamp-1 font-medium">
+                    “{searchQuery}”
+                  </span>
+                </>
+              ) : !info ? (
                 <span className="text-foreground font-medium">
                   Home — paste a link to start
                 </span>
@@ -977,7 +1040,9 @@ export default function App() {
                   <HistoryList
                     entries={history}
                     onRedownload={handleRedownload}
-                    onRemove={(i) => persistHistory(history.filter((_, idx) => idx !== i))}
+                    onRemove={(i) =>
+                      persistHistory(history.filter((_, idx) => idx !== i))
+                    }
                     onClearAll={() => setClearHistoryOpen(true)}
                   />
                 </motion.div>
@@ -1036,8 +1101,8 @@ export default function App() {
                     </span>
                   )}
                   <p className="text-muted-foreground max-w-sm text-center text-sm">
-                    Paste a link or switch to Search — preview the thumbnail
-                    and sizes, then pick exactly what you want.
+                    Paste a link or switch to Search — preview the thumbnail and
+                    sizes, then pick exactly what you want.
                   </p>
                   <div className="flex w-full max-w-lg flex-col gap-3">
                     {deps && depsMissing && (
@@ -1046,11 +1111,21 @@ export default function App() {
                         className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/70 bg-warning/15 p-3 text-sm"
                       >
                         <AlertTriangle className="text-warning size-4 shrink-0" />
-                        <span className="min-w-0 flex-1">{depsMissingText}</span>
-                        <Button variant="outline" size="xs" onClick={recheckDeps}>
+                        <span className="min-w-0 flex-1">
+                          {depsMissingText}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={recheckDeps}
+                        >
                           Recheck
                         </Button>
-                        <Button variant="outline" size="xs" onClick={() => setDepsOpen(true)}>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => setDepsOpen(true)}
+                        >
                           Fix it
                         </Button>
                       </div>
@@ -1070,7 +1145,11 @@ export default function App() {
                         >
                           Retry
                         </Button>
-                        <Button variant="ghost" size="xs" onClick={() => setFetchError(null)}>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setFetchError(null)}
+                        >
                           Dismiss
                         </Button>
                       </div>
@@ -1109,7 +1188,11 @@ export default function App() {
                       <Button variant="outline" size="xs" onClick={recheckDeps}>
                         Recheck
                       </Button>
-                      <Button variant="outline" size="xs" onClick={() => setDepsOpen(true)}>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => setDepsOpen(true)}
+                      >
                         Fix it
                       </Button>
                     </div>
@@ -1129,7 +1212,11 @@ export default function App() {
                       >
                         Retry
                       </Button>
-                      <Button variant="ghost" size="xs" onClick={() => setFetchError(null)}>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setFetchError(null)}
+                      >
                         Dismiss
                       </Button>
                     </div>
@@ -1143,11 +1230,14 @@ export default function App() {
                     mode={inputMode}
                     onModeChange={setInputMode}
                   />
-                  <SpotlightCard>
+                  <SpotlightCard className=" min-h-fit!">
                     <VideoCard info={info} />
                   </SpotlightCard>
 
-                  {trim && info.duration && settings.mode !== "thumbnail" && !settings.playlist ? (
+                  {trim &&
+                  info.duration &&
+                  settings.mode !== "thumbnail" &&
+                  !settings.playlist ? (
                     <TrimSlider
                       duration={info.duration}
                       value={trim}
@@ -1158,7 +1248,9 @@ export default function App() {
 
                   <FormatPicker
                     settings={settings}
-                    onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+                    onChange={(patch) =>
+                      setSettings((s) => ({ ...s, ...patch }))
+                    }
                     busy={depsMissing}
                     queued={downloading || queuedJobs.length > 0}
                     onPickFolder={handlePickFolder}
@@ -1208,7 +1300,9 @@ export default function App() {
                     <div className="bg-muted/60 grid grid-cols-2 gap-2 rounded-lg border p-3 text-xs">
                       <span className="text-muted-foreground">Mode</span>
                       <span className="font-medium">{confirmLabel}</span>
-                      <span className="text-muted-foreground">Estimated size</span>
+                      <span className="text-muted-foreground">
+                        Estimated size
+                      </span>
                       <span className="font-medium tabular-nums">
                         {estimate != null && estimate > 0
                           ? `~${formatBytes(estimate)}`
@@ -1239,13 +1333,16 @@ export default function App() {
             </AlertDialogContent>
           </AlertDialog>
 
-          <AlertDialog open={clearHistoryOpen} onOpenChange={setClearHistoryOpen}>
+          <AlertDialog
+            open={clearHistoryOpen}
+            onOpenChange={setClearHistoryOpen}
+          >
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Clear all history?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Removes all {history.length} entries. Downloaded files are
-                  not deleted.
+                  Removes all {history.length} entries. Downloaded files are not
+                  deleted.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -1268,7 +1365,11 @@ export default function App() {
             onRecheck={recheckDeps}
             onOpenChange={setDepsOpen}
           />
-          <Toaster position="bottom-center" richColors theme={dark ? "dark" : "light"} />
+          <Toaster
+            position="bottom-center"
+            richColors
+            theme={dark ? "dark" : "light"}
+          />
         </main>
       </MotionConfig>
     </TooltipProvider>

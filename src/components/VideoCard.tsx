@@ -20,7 +20,7 @@ export function VideoCard({ info }: { info: VideoInfo }) {
   const date = formatUploadDate(info.uploadDate);
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:flex-row">
+    <div className="flex flex-col gap-4 min-h-fit! p-4 sm:flex-row">
       {src && (
         <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-lg border bg-muted sm:w-64">
           <img

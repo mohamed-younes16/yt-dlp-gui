@@ -39,6 +39,7 @@ export function searchVideos(
 export interface DownloadOptions {
   id: string;
   url: string;
+  title: string;
   mode: DownloadMode;
   quality: number;
   container: string;
@@ -59,12 +60,14 @@ export interface DownloadOptions {
 export function downloadOptionsFrom(
   id: string,
   url: string,
+  title: string,
   s: FormatSettings,
   trim: [number, number] | null,
 ): DownloadOptions {
   return {
     id,
     url,
+    title,
     mode: s.mode,
     quality: s.quality,
     container: s.container,

@@ -9,8 +9,8 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::{
-    cookies_args, detect_js_runtime, extract_error, fix_cookie_browser_name, hide_window,
-    hint_for_error, kill_tree, truncate, validate_media_url,
+    apply_py_utf8, cookies_args, detect_js_runtime, extract_error, fix_cookie_browser_name,
+    hide_window, hint_for_error, kill_tree, truncate, validate_media_url,
 };
 
 const MAX_CONCURRENT: usize = 3;
@@ -219,6 +219,86 @@ fn audio_quality_args(bitrate: u32, format: &str) -> Vec<String> {
     args
 }
 
+/// Rigid filename sanitization that keeps the title's shape: every character
+/// that is illegal in a file name (Windows set — the strictest mainstream OS)
+/// becomes its fullwidth lookalike instead of being stripped, so
+/// `A | B` stays readable as `A ｜ B`. Also neutralizes `%` so a title can
+/// never act as an output-template placeholder, and drops control chars.
+pub fn sanitize_filename_stem(title: &str) -> String {
+    let mut s: String = title
+        .chars()
+        .map(|c| match c {
+            '<' => '＜',
+            '>' => '＞',
+            ':' => '：',
+            '"' => '＂',
+            '/' => '／',
+            '\\' => '＼',
+            '|' => '｜',
+            '?' => '？',
+            '*' => '＊',
+            '%' => '％',
+            c if c.is_control() => '_',
+            c => c,
+        })
+        .collect();
+    // Windows forbids trailing dots/spaces (it silently strips them, which
+    // would desync our expected file name from the real one) — swap them for
+    // lookalikes instead of dropping them.
+    fix_trailing_dots_spaces(&mut s);
+    if s.trim().is_empty() {
+        return "video".to_string();
+    }
+    // Reserved DOS device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9).
+    const RESERVED: [&str; 22] = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6",
+        "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6",
+        "LPT7", "LPT8", "LPT9",
+    ];
+    if RESERVED.contains(&s.to_ascii_uppercase().as_str()) {
+        s.push('_');
+    }
+    // Cap the stem so folder + ` [id].ext` can never approach MAX_PATH.
+    const MAX_STEM_CHARS: usize = 120;
+    if s.chars().count() > MAX_STEM_CHARS {
+        s = s.chars().take(MAX_STEM_CHARS).collect();
+        fix_trailing_dots_spaces(&mut s);
+    }
+    s
+}
+
+/// Trailing `.` → `․` (one-dot leader) and ` ` → `　` (ideographic space):
+/// visually identical, but legal on Windows and never silently stripped.
+fn fix_trailing_dots_spaces(s: &mut String) {
+    let mut chars: Vec<char> = s.chars().collect();
+    let mut changed = false;
+    // Walk the ORIGINAL trailing run backwards — matching on our own
+    // replacements (․/　) would stop the loop after one step.
+    for c in chars.iter_mut().rev() {
+        match c {
+            '.' => {
+                *c = '․';
+                changed = true;
+            }
+            ' ' => {
+                *c = '　';
+                changed = true;
+            }
+            _ => break,
+        }
+    }
+    if changed {
+        *s = chars.into_iter().collect();
+    }
+}
+
+/// Output template built from OUR sanitized title — never from yt-dlp's raw
+/// `%(title)s`. The `[%(id)s]` suffix keeps every entry unique (playlists
+/// included) since ids are `[A-Za-z0-9_-]` by construction.
+pub fn output_template(title: &str) -> String {
+    format!("{} [%(id)s].%(ext)s", sanitize_filename_stem(title))
+}
+
 fn extras_args(
     save_thumbnail: bool,
     embed_thumbnail: bool,
@@ -302,6 +382,7 @@ fn read_pass(
     args: Vec<String>,
     url: &str,
     folder: &str,
+    output_template: &str,
     phase: &str,
     playlist: bool,
     flags: &Arc<Flags>,
@@ -312,15 +393,40 @@ fn read_pass(
         "--newline".to_string(),
         "-P".to_string(),
         folder.to_string(),
+        // Our own sanitized name (never yt-dlp's raw %(title)s).
+        "-o".to_string(),
+        output_template.to_string(),
     ];
+    // Second layer: force Win32-legal names for anything else yt-dlp writes.
+    if cfg!(windows) {
+        full.push("--windows-filenames".to_string());
+    }
+    // Dev-terminal log: the exact invocation, so a failure can be replayed
+    // verbatim in a shell. No secrets here — only paths, flags, and the URL.
+    eprintln!("[ytdl-gui] pass '{phase}' argv: yt-dlp {}", full.join(" "));
     if !playlist {
         full.push("--no-playlist".to_string());
     }
     full.extend(args);
+    // Dev-terminal log AFTER assembly: the exact invocation, replayable
+    // verbatim in a shell. No secrets here — only paths, flags, and the URL.
+    eprintln!("[ytdl-gui] pass '{phase}' argv: yt-dlp {}", full.join(" "));
 
     emit(app, id, "starting", phase, 0.0, None, None, None, None);
 
     let mut cmd = Command::new("yt-dlp");
+    apply_py_utf8(&mut cmd);
+    // Prove in the dev log that the child really carries the UTF-8 env —
+    // settles "is the running binary stale?" without guessing.
+    let pyenv: Vec<String> = cmd
+        .get_envs()
+        .filter_map(|(k, v)| {
+            let k = k.to_str()?;
+            (k == "PYTHONUTF8" || k == "PYTHONIOENCODING")
+                .then(|| format!("{k}={}", v.and_then(|x| x.to_str()).unwrap_or("?")))
+        })
+        .collect();
+    eprintln!("[ytdl-gui] pyenv: {}", pyenv.join(" "));
     cmd.args(&full).stdout(Stdio::piped()).stderr(Stdio::piped());
     hide_window(&mut cmd);
 
@@ -399,10 +505,18 @@ fn read_pass(
     }
 
     let mut stdout_error: Option<String> = None;
+    // Last `[Section]` header seen on stdout — tells the user-facing error
+    // exactly which stage died (download vs ExtractAudio vs EmbedThumbnail…).
+    let mut last_step: Option<String> = None;
     {
         let reader = BufReader::new(stdout);
         for line in reader.lines().map_while(Result::ok) {
             tick.fetch_add(1, Ordering::Relaxed);
+            if line.starts_with('[') {
+                if let Some(end) = line.find(']') {
+                    last_step = Some(line[1..end].to_string());
+                }
+            }
             if let Some(rest) = line.strip_prefix("[download] Destination:") {
                 *last_file.lock().unwrap() =
                     Some(rest.trim().trim_matches('"').to_string());
@@ -442,14 +556,44 @@ fn read_pass(
         return PassOutcome::OptionUnsupported;
     }
     if let Some(err) = stdout_error {
-        return PassOutcome::Failed(err);
+        return fail_with_log(&stderr_snapshot, err, &last_step, phase);
     }
-    match extract_error(stderr_snapshot) {
-        Some(msg) => PassOutcome::Failed(msg),
-        None => PassOutcome::Failed(format!(
-            "yt-dlp exited with an error (code {})",
-            if exit_ok { 0 } else { 1 }
-        )),
+    match extract_error(stderr_snapshot.iter().cloned()) {
+        Some(msg) => fail_with_log(&stderr_snapshot, msg, &last_step, phase),
+        None => fail_with_log(
+            &stderr_snapshot,
+            format!(
+                "yt-dlp exited with an error (code {})",
+                if exit_ok { 0 } else { 1 }
+            ),
+            &last_step,
+            phase,
+        ),
+    }
+}
+
+/// Failure path: tag the message with the stage that died, and dump the full
+/// stderr snapshot to the dev terminal so the exact yt-dlp failure is visible
+/// without re-running anything.
+fn fail_with_log(
+    stderr: &[String],
+    msg: String,
+    last_step: &Option<String>,
+    phase: &str,
+) -> PassOutcome {
+    eprintln!(
+        "[ytdl-gui] pass '{phase}' failed during step '{}'\n--- yt-dlp stderr ---\n{}\n--- end stderr ---",
+        last_step.as_deref().unwrap_or("?"),
+        stderr.join("\n")
+    );
+    PassOutcome::Failed(with_step(msg, last_step))
+}
+
+/// Append `(during <Step>)` so the UI error names the failing stage.
+fn with_step(msg: String, last_step: &Option<String>) -> String {
+    match last_step {
+        Some(s) => format!("{msg} (during {s})"),
+        None => msg,
     }
 }
 
@@ -506,6 +650,7 @@ fn run_job(
     id: String,
     url: String,
     folder: String,
+    output_template: String,
     passes: Vec<(String, Vec<String>)>,
     cookies: Vec<String>,
     browser: String,
@@ -539,6 +684,7 @@ fn run_job(
                 args,
                 &url,
                 &folder,
+                &output_template,
                 phase,
                 playlist,
                 &flags,
@@ -598,8 +744,8 @@ pub async fn start_download(
     state: State<'_, DownloadState>,
     id: String,
     url: String,
-    mode: String,
-    quality: u32,
+    title: String,
+    mode: String,    quality: u32,
     container: String,
     audio_bitrate: u32,
     audio_format: String,
@@ -630,6 +776,10 @@ pub async fn start_download(
 
     let extras = extras_args(save_thumbnail, embed_thumbnail, embed_metadata, subtitles);
 
+    // The file name comes from OUR sanitized title — rigid, shape-preserving,
+    // and immune to whatever yt-dlp would otherwise derive from raw metadata.
+    let template = output_template(&title);
+    eprintln!("[ytdl-gui] download {id} mode={mode} template={template:?}");
     let mut trim_args: Vec<String> = Vec::new();
     if let (Some(s), Some(e)) = (trim_start, trim_end) {
         if e > s && s >= 0.0 {
@@ -655,7 +805,7 @@ pub async fn start_download(
         .filter(|b| b != "none")
         .unwrap_or_default();
     tauri::async_runtime::spawn_blocking(move || {
-        run_job(app2, id, url, folder, passes, cookies, browser, playlist, flags);
+        run_job(app2, id, url, folder, template, passes, cookies, browser, playlist, flags);
     });
     Ok(())
 }
@@ -679,7 +829,7 @@ impl DownloadState {
 
 #[cfg(test)]
 mod progress_tests {
-    use super::parse_progress_line;
+    use super::{output_template, parse_progress_line, sanitize_filename_stem, with_step};
 
     #[test]
     fn parses_a_real_ytdlp_line() {
@@ -705,5 +855,58 @@ mod progress_tests {
     fn percent_is_clamped_to_100() {
         let p = parse_progress_line("[download] 150% of 1MiB", "audio", None).unwrap();
         assert_eq!(p.percent, 100.0);
+    }
+
+    #[test]
+    fn sanitizer_keeps_shape_with_lookalikes() {
+        assert_eq!(sanitize_filename_stem("a | b"), "a ｜ b");
+        assert_eq!(
+            sanitize_filename_stem("<>:\"/\\|?*"),
+            "＜＞：＂／＼｜？＊"
+        );
+        // The exact title that failed with Errno 22 on Windows.
+        // (trailing `.` becomes ｡-like U+2024 so Windows can't strip it.)
+        assert_eq!(
+            sanitize_filename_stem("♪ Kaiser e Isagi (Blue Lock) | Prodígios | AniRap ft. Lucas A.R.T."),
+            "♪ Kaiser e Isagi (Blue Lock) ｜ Prodígios ｜ AniRap ft. Lucas A.R.T․"
+        );
+    }
+
+    #[test]
+    fn sanitizer_is_rigid() {
+        // % must never survive — it would act as an output-template placeholder.
+        assert_eq!(sanitize_filename_stem("100% %(id)s"), "100％ ％(id)s");
+        // Control characters, trailing dots/spaces (lookalikes, not stripped),
+        // empties, reserved names.
+        assert_eq!(sanitize_filename_stem("a\x00b"), "a_b");
+        assert_eq!(
+            sanitize_filename_stem("Video...   "),
+            "Video․․․\u{3000}\u{3000}\u{3000}"
+        );
+        assert_eq!(sanitize_filename_stem("   "), "video");
+        assert_eq!(sanitize_filename_stem("CON"), "CON_");
+        // Absurd titles get capped without splitting a character.
+        let long = "é".repeat(200);
+        let cut = sanitize_filename_stem(&long);
+        assert_eq!(cut.chars().count(), 120);
+        // Clean titles pass through byte-identical.
+        assert_eq!(sanitize_filename_stem("HIGURUMA meme template"), "HIGURUMA meme template");
+    }
+
+    #[test]
+    fn template_pins_id_for_uniqueness() {
+        assert_eq!(
+            output_template("a | b"),
+            "a ｜ b [%(id)s].%(ext)s"
+        );
+    }
+
+    #[test]
+    fn step_suffix_names_the_stage() {
+        assert_eq!(
+            with_step("boom".into(), &Some("EmbedThumbnail".into())),
+            "boom (during EmbedThumbnail)"
+        );
+        assert_eq!(with_step("boom".into(), &None), "boom");
     }
 }

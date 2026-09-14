@@ -72,6 +72,20 @@ pub fn cookies_args(
     }
 }
 
+/// Force UTF-8 stdio on every spawned Python (yt-dlp) process.
+///
+/// Root cause of a real `ERROR: [Errno 22] Invalid argument`: when yt-dlp's
+/// stdout is a pipe (as in this app) instead of a console, CPython falls back
+/// to the ANSI codepage (cp1252 on Western Windows). The first progress/info
+/// line containing a non-cp1252 character (♪, ｜, φ, … — all common in video
+/// titles) then fails to encode and yt-dlp aborts. From an interactive shell
+/// it works because console output uses the Unicode API and never encodes.
+/// These two vars pin UTF-8 regardless of console, codepage, or launcher.
+pub fn apply_py_utf8(cmd: &mut std::process::Command) {
+    cmd.env("PYTHONUTF8", "1");
+    cmd.env("PYTHONIOENCODING", "utf-8");
+}
+
 /// yt-dlp needs a JS runtime for SABR player data on newer releases.
 pub fn detect_js_runtime() -> Option<&'static str> {
     for name in ["bun", "deno", "node"] {
@@ -100,6 +114,7 @@ pub struct TimedOutput {
 /// the child if it hangs. The pipe handles are taken out of the child *before*
 /// the readers start, so the timeout loop never contends with `read_to_end`.
 pub fn run_with_timeout(mut cmd: Command, timeout: Duration) -> Result<TimedOutput, String> {
+    apply_py_utf8(&mut cmd);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     hide_window(&mut cmd);
     let mut child = cmd
@@ -216,7 +231,11 @@ pub fn fix_cookie_browser_name(msg: &str, browser: &str) -> String {
 /// Map notorious yt-dlp failure modes to actionable hints.
 pub fn hint_for_error(msg: &str) -> String {
     let l = msg.to_lowercase();
-    let hint = if l.contains("dpapi") || (l.contains("cookie") && l.contains("decrypt")) {
+    let hint = if l.contains("cp1252") || l.contains("textiowrapper") || l.contains("charmap") {
+        " — yt-dlp crashed printing a non-English title to a legacy Windows codepage. \
+         This build forces UTF-8 for yt-dlp automatically; if you still see this, update \
+         yt-dlp (header dot → Update yt-dlp) and retry."
+    } else if l.contains("dpapi") || (l.contains("cookie") && l.contains("decrypt")) {
         " — Chrome and Edge encrypt their cookies with app-bound encryption (yt-dlp issue \
          #10927), which third-party apps often can't unlock. Most reliable fix: export a \
          cookies.txt (e.g. with the \"Get cookies.txt LOCALLY\" extension) and pick \
@@ -340,5 +359,26 @@ mod tests {
         let s = "é".repeat(10); // 20 bytes; a 5-byte cut splits a char
         assert!(truncate(&s, 5).ends_with('…'));
         assert_eq!(truncate("short", 100), "short");
+    }
+
+    #[test]
+    fn utf8_env_is_pinned_on_spawn() {
+        let mut cmd = std::process::Command::new("yt-dlp");
+        apply_py_utf8(&mut cmd);
+        let env: std::collections::HashMap<String, String> = cmd
+            .get_envs()
+            .filter_map(|(k, v)| Some((k.to_str()?.to_owned(), v?.to_str()?.to_owned())))
+            .collect();
+        assert_eq!(env.get("PYTHONUTF8").map(String::as_str), Some("1"));
+        assert_eq!(
+            env.get("PYTHONIOENCODING").map(String::as_str),
+            Some("utf-8")
+        );
+    }
+
+    #[test]
+    fn codepage_crash_gets_an_actionable_hint() {
+        assert!(hint_for_error("Exception ignored in TextIOWrapper encoding='cp1252'")
+            .contains("UTF-8"));
     }
 }
