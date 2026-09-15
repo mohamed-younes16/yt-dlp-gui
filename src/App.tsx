@@ -179,10 +179,25 @@ export default function App() {
   const activeBg: "rings" | "lite" | "off" = reducedMotion ? "off" : bgMode;
   const activeShiny = reducedMotion ? false : shinyEnabled;
 
-  const estimate = useMemo(
-    () => (info ? estimateSize(info, settings.mode, settings.quality) : null),
-    [info, settings.mode, settings.quality],
-  );
+  const estimate = useMemo(() => {
+    if (!info) return null;
+    const base = estimateSize(info, settings.mode, settings.quality);
+    if (base == null) return null;
+    // Trim-aware: scale by the selected duration fraction. Real bitrate is
+    // variable (VBR), so a 20s slice of a 60s video is only *roughly* a
+    // third of the bytes — good enough for a badge, not a promise.
+    if (
+      trim &&
+      info.duration &&
+      info.duration > 0 &&
+      settings.mode !== "thumbnail" &&
+      !settings.playlist
+    ) {
+      const frac = (trim[1] - trim[0]) / info.duration;
+      if (frac > 0 && frac < 1) return base * frac;
+    }
+    return base;
+  }, [info, settings.mode, settings.quality, settings.playlist, trim]);
 
   const activeJob = jobs.find(
     (j) => j.status === "starting" || j.status === "downloading",
@@ -229,7 +244,9 @@ export default function App() {
 
   // ---- startup: deps + history + the single global progress listener ----
   useEffect(() => {
-    getVersion().then(setAppVersion).catch(() => {});
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => {});
     checkDependencies()
       .then((d) => {
         setDeps(d);
@@ -775,9 +792,9 @@ export default function App() {
                       <Settings />
                     </Button>
                   </DrawerTrigger>
-                  <DrawerContent className="mx-auto max-w-xl">
+                  <DrawerContent className="mx-auto w-[min(70vw,56rem)]">
                     <DrawerHeader className="flex flex-row items-start justify-between text-left">
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex items-start flex-col gap-0.5">
                         <DrawerTitle>Settings</DrawerTitle>
                         <DrawerDescription>
                           App preferences — stored locally.
@@ -793,9 +810,9 @@ export default function App() {
                         </Button>
                       </DrawerClose>
                     </DrawerHeader>
-                    <ScrollArea className="min-h-0 flex-1">
+                    <ScrollArea className="min-h-0  flex-1">
                       <div
-                        className="flex flex-col gap-3 px-4 pb-6"
+                        className="grid grid-cols-1 gap-3 px-4 pb-6 sm:grid-cols-2"
                         data-vaul-no-drag
                       >
                         <SettingsRow
