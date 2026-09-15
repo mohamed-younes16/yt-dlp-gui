@@ -299,6 +299,67 @@ pub fn output_template(title: &str) -> String {
     format!("{} [%(id)s].%(ext)s", sanitize_filename_stem(title))
 }
 
+/// True when a yt-dlp failure message means "couldn't create the output file"
+/// (Windows `Errno 22`/`Errno 2`, filename rejected, folder missing…). Those
+/// are worth one retry under a guaranteed-ASCII name before surfacing.
+pub fn is_file_open_error(msg: &str) -> bool {
+    let l = msg.to_lowercase();
+    l.contains("unable to open for writing")
+        || l.contains("errno 22")
+        || (l.contains("errno 2") && l.contains("invalid argument"))
+        || l.contains("invalid filename")
+}
+
+/// Last-resort stem: pure ASCII so no filesystem, sync client, or legacy
+/// codepage can reject it. Keeps letters/digits plus `_-.,()[] `, collapses
+/// everything else to `_` (no consecutive runs), trims edge junk, caps at 80
+/// chars. Never empty, never a reserved DOS name.
+pub fn ascii_safe_stem(title: &str) -> String {
+    let mut s = String::with_capacity(title.len());
+    let mut last_underscore = false;
+    for c in title.chars() {
+        let keep = c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ',' | '(' | ')' | '[' | ']' | ' ');
+        if keep {
+            s.push(c);
+            last_underscore = false;
+        } else if !last_underscore {
+            s.push('_');
+            last_underscore = true;
+        }
+    }
+    let mut s = s.trim().trim_matches('.').trim().to_string();
+    // Collapse any accidental double spaces from replacement seams.
+    while s.contains("  ") {
+        s = s.replace("  ", " ");
+    }
+    if s.trim().is_empty() {
+        return "video".to_string();
+    }
+    const RESERVED: [&str; 22] = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6",
+        "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6",
+        "LPT7", "LPT8", "LPT9",
+    ];
+    if RESERVED.contains(&s.to_ascii_uppercase().as_str()) {
+        s.push('_');
+    }
+    const MAX_ASCII_CHARS: usize = 80;
+    if s.chars().count() > MAX_ASCII_CHARS {
+        s = s.chars().take(MAX_ASCII_CHARS).collect();
+        s = s.trim().trim_matches('.').trim().to_string();
+        if s.is_empty() {
+            return "video".to_string();
+        }
+    }
+    s
+}
+
+/// Fallback template: same `[id].ext` uniqueness, ASCII-only stem. Used for
+/// exactly one retry when the pretty fullwidth name is rejected.
+pub fn fallback_template(title: &str) -> String {
+    format!("{} [%(id)s].%(ext)s", ascii_safe_stem(title))
+}
+
 fn extras_args(
     save_thumbnail: bool,
     embed_thumbnail: bool,
@@ -401,9 +462,6 @@ fn read_pass(
     if cfg!(windows) {
         full.push("--windows-filenames".to_string());
     }
-    // Dev-terminal log: the exact invocation, so a failure can be replayed
-    // verbatim in a shell. No secrets here — only paths, flags, and the URL.
-    eprintln!("[ytdl-gui] pass '{phase}' argv: yt-dlp {}", full.join(" "));
     if !playlist {
         full.push("--no-playlist".to_string());
     }
@@ -463,7 +521,10 @@ fn read_pass(
         let tick2 = tick.clone();
         std::thread::spawn(move || {
             let reader = BufReader::new(stderr_handle);
-            for line in reader.lines().map_while(Result::ok) {
+            // filter_map, NOT map_while: a single non-UTF8 line (ffmpeg
+            // banners, locale-specific progress) must be skipped, never
+            // truncate the whole stream and hide the real error tail.
+            for line in reader.lines().filter_map(|r| r.ok()) {
                 tick2.fetch_add(1, Ordering::Relaxed);
                 let mut v = sink.lock().unwrap();
                 if v.len() < STDERR_CAP {
@@ -510,7 +571,9 @@ fn read_pass(
     let mut last_step: Option<String> = None;
     {
         let reader = BufReader::new(stdout);
-        for line in reader.lines().map_while(Result::ok) {
+        // filter_map, NOT map_while: one undecodable line must not swallow
+        // every later line (progress, Destination, ERROR).
+        for line in reader.lines().filter_map(|r| r.ok()) {
             tick.fetch_add(1, Ordering::Relaxed);
             if line.starts_with('[') {
                 if let Some(end) = line.find(']') {
@@ -651,6 +714,7 @@ fn run_job(
     url: String,
     folder: String,
     output_template: String,
+    fallback_output_template: String,
     passes: Vec<(String, Vec<String>)>,
     cookies: Vec<String>,
     browser: String,
@@ -664,6 +728,11 @@ fn run_job(
         .first()
         .map(|p| p.0.clone())
         .unwrap_or_else(|| "video".into());
+    let mut template_in_use = output_template.clone();
+    let mut tried_fallback = false;
+    // Name shown in the final error so the user (and the dev log) can see
+    // which of the two names yt-dlp actually choked on.
+    let mut failed_template_note = String::new();
     let outcome = loop {
         let mut outcome = PassOutcome::Ok;
         for (phase, base_args) in &passes {
@@ -684,7 +753,7 @@ fn run_job(
                 args,
                 &url,
                 &folder,
-                &output_template,
+                &template_in_use,
                 phase,
                 playlist,
                 &flags,
@@ -698,6 +767,21 @@ fn run_job(
         if outcome == PassOutcome::OptionUnsupported && js_runtime.is_some() {
             js_runtime = None;
             continue;
+        }
+        // Filename rejected (Errno 22 et al.) → one retry under a pure-ASCII
+        // name. Stale partials keep their own names; reset the tracked file
+        // so a fallback success never reports the dead pretty path.
+        if let PassOutcome::Failed(ref msg) = outcome {
+            if !tried_fallback && is_file_open_error(msg) && template_in_use != fallback_output_template {
+                eprintln!(
+                    "[ytdl-gui] pass template rejected ({msg:?}); retrying once as {fallback_output_template:?}"
+                );
+                failed_template_note = format!(" (first name failed: {template_in_use:?})");
+                template_in_use = fallback_output_template.clone();
+                tried_fallback = true;
+                *last_file.lock().unwrap() = None;
+                continue;
+            }
         }
         break outcome;
     };
@@ -726,12 +810,15 @@ fn run_job(
             );
         }
         PassOutcome::OptionUnsupported | PassOutcome::Failed(_) => {
-            let msg = match outcome {
+            let mut msg = match outcome {
                 PassOutcome::Failed(m) => {
                     hint_for_error(&fix_cookie_browser_name(&m, &browser))
                 }
                 _ => "yt-dlp does not support the --js-runtimes flag — update yt-dlp.".into(),
             };
+            if !failed_template_note.is_empty() {
+                msg.push_str(&failed_template_note);
+            }
             emit(&app, &id, "error", &current_phase, 0.0, None, None, None, Some(msg));
         }
     }
@@ -778,8 +865,11 @@ pub async fn start_download(
 
     // The file name comes from OUR sanitized title — rigid, shape-preserving,
     // and immune to whatever yt-dlp would otherwise derive from raw metadata.
+    // A pure-ASCII fallback rides along for one retry if the OS rejects the
+    // pretty name (Errno 22 on exotic/legacy targets).
     let template = output_template(&title);
-    eprintln!("[ytdl-gui] download {id} mode={mode} template={template:?}");
+    let fallback = fallback_template(&title);
+    eprintln!("[ytdl-gui] download {id} mode={mode} template={template:?} fallback={fallback:?}");
     let mut trim_args: Vec<String> = Vec::new();
     if let (Some(s), Some(e)) = (trim_start, trim_end) {
         if e > s && s >= 0.0 {
@@ -805,7 +895,7 @@ pub async fn start_download(
         .filter(|b| b != "none")
         .unwrap_or_default();
     tauri::async_runtime::spawn_blocking(move || {
-        run_job(app2, id, url, folder, template, passes, cookies, browser, playlist, flags);
+        run_job(app2, id, url, folder, template, fallback, passes, cookies, browser, playlist, flags);
     });
     Ok(())
 }
@@ -829,7 +919,10 @@ impl DownloadState {
 
 #[cfg(test)]
 mod progress_tests {
-    use super::{output_template, parse_progress_line, sanitize_filename_stem, with_step};
+    use super::{
+        ascii_safe_stem, fallback_template, is_file_open_error, output_template,
+        parse_progress_line, sanitize_filename_stem, with_step,
+    };
 
     #[test]
     fn parses_a_real_ytdlp_line() {
@@ -908,5 +1001,35 @@ mod progress_tests {
             "boom (during EmbedThumbnail)"
         );
         assert_eq!(with_step("boom".into(), &None), "boom");
+    }
+
+    #[test]
+    fn file_open_errors_are_detected() {
+        assert!(is_file_open_error(
+            "ERROR: unable to open for writing: [Errno 22] Invalid argument"
+        ));
+        assert!(is_file_open_error("ERROR: Unable to Open for Writing: errno 2 stuff"));
+        assert!(!is_file_open_error("ERROR: HTTP Error 403"));
+        assert!(!is_file_open_error("yt-dlp exited with an error"));
+    }
+
+    #[test]
+    fn ascii_fallback_is_pure_ascii_and_stable() {
+        let s = ascii_safe_stem("♪ Bastard X PXG ( Blue Lock ) | Liga Neo Egoísta PT 4 | AniRap");
+        assert!(s.is_ascii(), "fallback must be ASCII, got {s:?}");
+        assert!(!s.contains('|') && !s.contains("  "));
+        assert_eq!(
+            s,
+            "_ Bastard X PXG ( Blue Lock ) _ Liga Neo Ego_sta PT 4 _ AniRap"
+        );
+        assert_eq!(ascii_safe_stem("   "), "video");
+        assert_eq!(ascii_safe_stem("CON"), "CON_");
+        assert_eq!(ascii_safe_stem("100% %(id)s"), "100_ _(id)s");
+        let long = "é".repeat(200);
+        assert!(ascii_safe_stem(&long).chars().count() <= 80);
+        assert_eq!(
+            fallback_template("a | b"),
+            "a _ b [%(id)s].%(ext)s"
+        );
     }
 }

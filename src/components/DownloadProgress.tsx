@@ -1,4 +1,5 @@
-import { CheckCircle2, ListMusic, Loader2, X, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, ListMusic, Loader2, X, XCircle } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,6 +9,7 @@ import type { DownloadJob } from "@/lib/types";
 interface DownloadStatusBarProps {
   job: DownloadJob;
   queueCount: number;
+  queuedJobs: DownloadJob[];
   onCancel: (id: string) => void;
   onDismiss: (id: string) => void;
 }
@@ -27,11 +29,13 @@ function phaseLabel(job: DownloadJob): string {
 export function DownloadStatusBar({
   job,
   queueCount,
+  queuedJobs,
   onCancel,
   onDismiss,
 }: DownloadStatusBarProps) {
   const active = job.status === "starting" || job.status === "downloading";
   const percent = Math.min(job.percent, 100);
+  const [queueOpen, setQueueOpen] = useState(false);
 
   return (
     <Card size="sm" className="shrink-0 py-0">
@@ -61,10 +65,15 @@ export function DownloadStatusBar({
             </span>
           )}
           {queueCount > 0 && (
-            <span className="bg-muted text-muted-foreground ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-micro tabular-nums">
+            <button
+              type="button"
+              className="bg-muted text-muted-foreground ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-micro tabular-nums transition-colors hover:bg-muted/80"
+              onClick={() => setQueueOpen((o) => !o)}
+            >
               <ListMusic className="size-3" />
               {queueCount} queued
-            </span>
+              {queueOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+            </button>
           )}
           {active ? (
             <Button
@@ -90,6 +99,33 @@ export function DownloadStatusBar({
           )}
         </div>
         {active && <Progress value={percent} className="h-1.5" />}
+        {queueCount > 0 && queueOpen && (
+          <div className="flex flex-col gap-1 border-t pt-2">
+            {queuedJobs.map((q, i) => (
+              <div
+                key={q.id}
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-xs"
+              >
+                <span className="text-muted-foreground w-4 shrink-0 text-right tabular-nums">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{q.info.title}</span>
+                <span className="text-muted-foreground shrink-0 capitalize">
+                  {q.settings.mode}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="shrink-0"
+                  onClick={() => onCancel(q.id)}
+                  aria-label={`Cancel queued: ${q.info.title}`}
+                >
+                  <X className="size-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

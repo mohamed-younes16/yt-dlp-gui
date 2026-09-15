@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import {
   AnimatePresence,
   MotionConfig,
@@ -157,6 +158,7 @@ export default function App() {
   const [trim, setTrim] = useState<[number, number] | null>(null);
   const [deps, setDeps] = useState<DependencyStatus | null>(null);
   const [depsOpen, setDepsOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState("…");
   const [dark, setDark] = useState<boolean>(initialTheme);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [clearHistoryOpen, setClearHistoryOpen] = useState(false);
@@ -227,6 +229,7 @@ export default function App() {
 
   // ---- startup: deps + history + the single global progress listener ----
   useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {});
     checkDependencies()
       .then((d) => {
         setDeps(d);
@@ -591,12 +594,12 @@ export default function App() {
           : `${settings.quality}p · ${settings.container.toUpperCase()}`;
 
   const depsMissingText = !deps
-    ? "Checking yt-dlp and ffmpeg…"
+    ? "Checking for required tools…"
     : !deps.hasYtdlp && !deps.hasFfmpeg
-      ? "yt-dlp and ffmpeg are not installed — downloads are disabled."
+      ? "yt-dlp and ffmpeg are needed — click Fix it to install."
       : !deps.hasYtdlp
-        ? "yt-dlp is not installed — downloads are disabled."
-        : "ffmpeg is not installed — merging and audio extraction won't work.";
+        ? "yt-dlp is needed to download videos — click Fix it to install."
+        : "ffmpeg is needed for audio and merging — click Fix it to install.";
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -943,6 +946,82 @@ export default function App() {
                           </Button>
                         </SettingsRow>
                       </div>
+                      <div className="border-t px-4 pt-3 pb-4 text-center">
+                        <p className="text-foreground text-sm font-medium">
+                          ytdl-gui
+                          <span className="text-muted-foreground ml-1 text-xs font-normal">
+                            v{appVersion}
+                          </span>
+                        </p>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          Built with{" "}
+                          <a
+                            href="https://tauri.app"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground underline underline-offset-2"
+                          >
+                            Tauri
+                          </a>
+                          ,{" "}
+                          <a
+                            href="https://react.dev"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground underline underline-offset-2"
+                          >
+                            React
+                          </a>
+                          ,{" "}
+                          <a
+                            href="https://github.com/yt-dlp/yt-dlp"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground underline underline-offset-2"
+                          >
+                            yt-dlp
+                          </a>
+                          {" & "}
+                          <a
+                            href="https://ffmpeg.org"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground underline underline-offset-2"
+                          >
+                            ffmpeg
+                          </a>
+                        </p>
+                        <p className="text-muted-foreground mt-2 text-xs">
+                          Created by{" "}
+                          <a
+                            href="https://github.com/mohamed-younes16"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground underline underline-offset-2"
+                          >
+                            Mohamed Younes
+                          </a>
+                        </p>
+                        <div className="text-muted-foreground mt-1 flex items-center justify-center gap-3 text-xs">
+                          <a
+                            href="https://instagram.com/younesmohamed_77"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground underline underline-offset-2"
+                          >
+                            Instagram
+                          </a>
+                          <span>·</span>
+                          <a
+                            href="https://github.com/mohamed-younes16/yt-dlp-gui"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground underline underline-offset-2"
+                          >
+                            GitHub
+                          </a>
+                        </div>
+                      </div>
                     </ScrollArea>
                   </DrawerContent>
                 </Drawer>
@@ -1274,6 +1353,7 @@ export default function App() {
                   <DownloadStatusBar
                     job={displayJob}
                     queueCount={queuedJobs.length}
+                    queuedJobs={queuedJobs}
                     onCancel={handleCancel}
                     onDismiss={(id) =>
                       setJobs((js) => js.filter((j) => j.id !== id))

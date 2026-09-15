@@ -124,12 +124,12 @@ export function DependencyDialog({
             ) : (
               <AlertTriangle className="text-warning size-5" />
             )}
-            {allOk ? "All dependencies ready" : "Missing dependencies"}
+            {allOk ? "All dependencies ready" : "Setup needed — missing tools"}
           </DialogTitle>
           <DialogDescription>
             {allOk
               ? "yt-dlp and ffmpeg are detected. You can close this and start downloading."
-              : "ytdl-gui needs yt-dlp and ffmpeg on your PATH. Install them once and you're set."}
+              : "ytdl-gui needs two free tools to work. Install them once and you're all set — no technical knowledge required."}
           </DialogDescription>
         </DialogHeader>
 
@@ -146,11 +146,14 @@ export function DependencyDialog({
             }
           >
             <li>
-              Fastest on Windows: open PowerShell and run
+              <strong>What it does:</strong> Downloads videos and audio from YouTube and other sites.
+            </li>
+            <li>
+              <strong>Easiest install:</strong> open PowerShell and run
               <CopyChip command="winget install yt-dlp.yt-dlp" />
             </li>
             <li>
-              Or download the standalone exe from{" "}
+              Or download from{" "}
               <a
                 href="https://github.com/yt-dlp/yt-dlp/releases"
                 target="_blank"
@@ -158,10 +161,11 @@ export function DependencyDialog({
                 className="text-primary inline-flex items-center gap-1 underline"
               >
                 github.com/yt-dlp/yt-dlp <ExternalLink className="size-3" />
-              </a>{" "}
-              and add it to PATH.
+              </a>
+              , extract the <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">.exe</code> file, and move it to a folder on your PATH (like{" "}
+              <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">C:\yt-dlp</code>).
             </li>
-            <li>Then hit Recheck below — no restart needed.</li>
+            <li>Then click <strong>Recheck</strong> below — no restart needed.</li>
           </DepRow>
 
           <DepRow
@@ -179,19 +183,14 @@ export function DependencyDialog({
             }
           >
             <li>
-              On Windows: <CopyChip command="winget install Gyan.FFmpeg" />
+              <strong>What it does:</strong> Merges video + audio and handles audio extraction (needed for most downloads).
             </li>
             <li>
-              Or grab a build from{" "}
-              <a
-                href="https://ffmpeg.org/download.html"
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary inline-flex items-center gap-1 underline"
-              >
-                ffmpeg.org <ExternalLink className="size-3" />
-              </a>{" "}
-              /{" "}
+              <strong>Easiest install:</strong> open PowerShell and run
+              <CopyChip command="winget install Gyan.FFmpeg" />
+            </li>
+            <li>
+              Or download from{" "}
               <a
                 href="https://www.gyan.dev/ffmpeg/builds/"
                 target="_blank"
@@ -200,13 +199,11 @@ export function DependencyDialog({
               >
                 gyan.dev <ExternalLink className="size-3" />
               </a>{" "}
-              and add{" "}
-              <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">
-                bin
-              </code>{" "}
-              to PATH.
+              — get the <strong>ffmpeg-release-essentials.zip</strong>, extract it, and move the{" "}
+              <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">bin</code>{" "}
+              folder contents to a folder on your PATH.
             </li>
-            <li>Then hit Recheck below — no restart needed.</li>
+            <li>Then click <strong>Recheck</strong> below — no restart needed.</li>
           </DepRow>
         </div>
 
