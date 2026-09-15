@@ -699,6 +699,12 @@ export default function App() {
             {/* Top nav */}
             <header className="flex shrink-0 items-center justify-between gap-2 pb-4">
               <div className="flex min-w-0 items-center gap-2.5">
+                <img
+                  src="/logo.svg"
+                  alt="ytdl-gui logo"
+                  className="size-7 shrink-0"
+                  draggable={false}
+                />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -757,7 +763,7 @@ export default function App() {
                 onValueChange={(v) => setTab(v as "download" | "history")}
                 className="contents"
               >
-                <TabsList className="bg-card/90 border-border h-auto gap-1 rounded-full border p-1">
+                <TabsList className="bg-card/90 border-border h-auto gap-1 p-0! rounded-full border ">
                   <TabsTrigger value="download" className={PILL}>
                     <Download />
                     Download
@@ -769,7 +775,7 @@ export default function App() {
                       <span
                         className={
                           tab === "history"
-                            ? "bg-primary-foreground/25 text-primary-foreground rounded-full px-1.5 text-micro tabular-nums"
+                            ? "bg-primary-foreground text-primary rounded-full px-1.5 text-micro tabular-nums"
                             : "bg-accent text-foreground rounded-full px-1.5 text-micro tabular-nums"
                         }
                       >

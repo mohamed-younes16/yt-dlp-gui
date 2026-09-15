@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- ytdl-gui logo: play triangle over a download arrow + tray, lime on near-black -->
+  <rect x="64" y="64" width="896" height="896" rx="224" fill="#0B110A"/>
+  <!-- play -->
+  <path d="M368 302 L368 598 L656 450 Z"
+        fill="#A3E635" stroke="#A3E635" stroke-width="28"
+        stroke-linejoin="round"/>
+  <!-- arrow shaft -->
+  <rect x="482" y="628" width="60" height="110" fill="#A3E635"/>
+  <!-- arrowhead -->
+  <path d="M412 698 L612 698 L512 800 Z"
+        fill="#A3E635" stroke="#A3E635" stroke-width="24"
+        stroke-linejoin="round"/>
+  <!-- tray -->
+  <rect x="332" y="836" width="360" height="60" rx="30" fill="#A3E635"/>
+</svg>

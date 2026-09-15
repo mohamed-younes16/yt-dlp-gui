@@ -1,0 +1,19 @@
+{
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        "cargo": {
+          "allTargets": false,
+          "targetDir": true
+        },
+        "check": {
+          "allTargets": false
+        },
+        "procMacro": {
+          "enable": true
+        },
+        "lruCapacity": 16
+      }
+    }
+  }
+}
