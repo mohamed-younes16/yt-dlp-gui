@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import facebook from "@/assets/brands/facebook.svg";
 import instagram from "@/assets/brands/instagram.svg";
 import reddit from "@/assets/brands/reddit.svg";
@@ -21,10 +22,11 @@ const SITES = [
 ];
 
 export function SupportedSites() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-2.5">
       <p className="text-muted-foreground text-micro uppercase tracking-widest">
-        Works with
+        {t("supported.worksWith")}
       </p>
       <div className="flex max-w-xl flex-wrap items-center justify-center gap-2">
         {SITES.map((site) => (
@@ -43,7 +45,7 @@ export function SupportedSites() {
           </span>
         ))}
         <span className="text-muted-foreground px-1 text-xs">
-          + every other yt-dlp site
+          {t("supported.andMore")}
         </span>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Clock, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -16,6 +17,7 @@ export function TrimSlider({
   onChange,
   disabled,
 }: TrimSliderProps) {
+  const { t } = useTranslation();
   const max = Math.floor(duration);
   // Keep the thumbs inside [0, max] — a stale value must not render off-rail.
   const start = Math.min(Math.max(value[0], 0), max);
@@ -27,7 +29,7 @@ export function TrimSlider({
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-sm font-medium">
           <Scissors className="size-4" />
-          Trim
+          {t("trim.title")}
           {!full && (
             <span className="bg-primary/15 text-primary rounded-full px-1.5 py-0.5 text-micro">
               {formatDuration(end - start)}
@@ -52,7 +54,7 @@ export function TrimSlider({
 
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-micro">
-          Drag both ends to slice before downloading
+          {t("trim.hint")}
         </span>
         {!full && (
           <Button
@@ -61,7 +63,7 @@ export function TrimSlider({
             onClick={() => onChange([0, max])}
             disabled={disabled}
           >
-            Reset
+            {t("trim.reset")}
           </Button>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { useTranslation } from "react-i18next";
 import {
   AnimatePresence,
   MotionConfig,
@@ -11,6 +12,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Download,
+  Globe,
   History as HistoryIcon,
   Loader2,
   Moon,
@@ -138,6 +140,7 @@ function readRingColors(): { a: string; b: string } {
 }
 
 export default function App() {
+  const { t, i18n } = useTranslation();
   const reducedMotion = useReducedMotion() ?? false;
 
   const [info, setInfo] = useState<VideoInfo | null>(null);
@@ -256,7 +259,7 @@ export default function App() {
     loadHistory()
       .then(setHistory)
       .catch((err) =>
-        toast.warning("History could not be loaded", {
+        toast.warning(t("toast.historyLoadFailed"), {
           description: String(err).slice(0, 240),
         }),
       );
@@ -266,30 +269,30 @@ export default function App() {
       if (p.status === "done") {
         const job = jobsRef.current.find((j) => j.id === p.id);
         if (job) recordDownload(job, p.file);
-        toast.success("Download complete", {
+        toast.success(t("toast.downloadComplete"), {
           description: p.file
             ? p.file.split(/[\\/]/).pop()
-            : "Saved to your download folder",
+            : t("toast.savedToFolder"),
         });
         if (notifyOkRef.current) {
           sendNotification({
-            title: "Download complete",
+            title: t("notification.downloadComplete"),
             body:
               job?.info.title ??
               p.file?.split(/[\\/]/).pop() ??
-              "Saved to your download folder",
+              t("toast.savedToFolder"),
           });
         }
       } else if (p.status === "error") {
-        toast.error("Download failed", { description: p.message });
+        toast.error(t("toast.downloadFailed"), { description: p.message });
         if (notifyOkRef.current) {
           sendNotification({
-            title: "Download failed",
-            body: p.message ?? "Unknown error — see the app for details",
+            title: t("notification.downloadFailed"),
+            body: p.message ?? t("toast.unknownError"),
           });
         }
       } else if (p.status === "cancelled") {
-        toast.info("Download cancelled");
+        toast.info(t("toast.downloadCancelled"));
       }
       setJobs((js) =>
         js.map((j) =>
@@ -393,13 +396,13 @@ export default function App() {
       .then((d) => {
         setDeps(d);
         if (d.hasYtdlp && d.hasFfmpeg) {
-          toast.success("All dependencies found");
+          toast.success(t("toast.depsFound"));
           setDepsOpen(false);
         } else {
-          toast.info("Still missing dependencies");
+          toast.info(t("toast.depsStillMissing"));
         }
       })
-      .catch(() => toast.error("Could not check dependencies"));
+      .catch(() => toast.error(t("toast.depsCheckFailed")));
   }
 
   async function handleFetch(rawUrl: string) {
@@ -537,7 +540,7 @@ export default function App() {
       ),
     ).catch((err) => {
       const message = String(err).slice(0, 300);
-      toast.error("Download failed to start", { description: message });
+      toast.error(t("toast.downloadFailedStart"), { description: message });
       setJobs((js) =>
         js.map((j) =>
           j.id === next.id ? { ...j, status: "error", message } : j,
@@ -550,7 +553,7 @@ export default function App() {
     try {
       const found = await cancelDownload(id);
       if (!found) {
-        toast.info("That download already finished");
+        toast.info(t("toast.alreadyFinished"));
         setJobs((js) => js.filter((j) => j.id !== id));
       }
     } catch (err) {
@@ -563,17 +566,17 @@ export default function App() {
       setSettings((s) => ({ ...s, cookiesBrowser: v }));
       toast.success(
         v === "none"
-          ? "Sign-in cookies cleared"
-          : `Cookies will be read from ${v}`,
+          ? t("toast.cookiesCleared")
+          : t("toast.cookiesReadFrom", { browser: v }),
       );
       return;
     }
     const file = await pickCookiesFile();
     if (file) {
       setSettings((s) => ({ ...s, cookiesBrowser: "file", cookiesFile: file }));
-      toast.success("cookies.txt selected", { description: file });
+      toast.success(t("toast.cookiesSelected"), { description: file });
     } else if (settingsRef.current.cookiesBrowser !== "file") {
-      toast.info("No file picked — sign-in unchanged");
+      toast.info(t("toast.noFilePicked"));
     }
   }
 
@@ -581,9 +584,9 @@ export default function App() {
     setCookieChecking(true);
     try {
       const msg = await checkBrowserCookies(settingsRef.current.cookiesBrowser);
-      toast.success(msg || "Cookies loaded");
+      toast.success(msg || t("toast.cookiesLoaded"));
     } catch (err) {
-      toast.error("Cookie check failed", {
+      toast.error(t("toast.cookieCheckFailed"), {
         description: String(err).slice(0, 500),
       });
     } finally {
@@ -611,12 +614,12 @@ export default function App() {
           : `${settings.quality}p · ${settings.container.toUpperCase()}`;
 
   const depsMissingText = !deps
-    ? "Checking for required tools…"
+    ? t("deps.checking")
     : !deps.hasYtdlp && !deps.hasFfmpeg
-      ? "yt-dlp and ffmpeg are needed — click Fix it to install."
+      ? t("deps.bothMissing")
       : !deps.hasYtdlp
-        ? "yt-dlp is needed to download videos — click Fix it to install."
-        : "ffmpeg is needed for audio and merging — click Fix it to install.";
+        ? t("deps.ytdlpMissing")
+        : t("deps.ffmpegMissing");
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -718,8 +721,8 @@ export default function App() {
                       onClick={() => setDepsOpen(true)}
                       aria-label={
                         deps && deps.hasYtdlp && deps.hasFfmpeg
-                          ? "Dependencies OK — open details"
-                          : "Missing dependencies — open fix dialog"
+                          ? t("deps.okLabel")
+                          : t("deps.missingLabel")
                       }
                     >
                       {deps && deps.hasYtdlp && deps.hasFfmpeg ? (
@@ -731,7 +734,7 @@ export default function App() {
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
                     {deps && deps.hasYtdlp && deps.hasFfmpeg
-                      ? "yt-dlp + ffmpeg ready"
+                      ? t("deps.ready")
                       : depsMissingText}
                   </TooltipContent>
                 </Tooltip>
@@ -770,7 +773,7 @@ export default function App() {
                   </TabsTrigger>
                   <TabsTrigger value="history" className={PILL}>
                     <HistoryIcon />
-                    History
+                    {t("tab.history")}
                     {history.length > 0 && (
                       <span
                         className={
@@ -801,9 +804,9 @@ export default function App() {
                   <DrawerContent className="mx-auto w-[min(70vw,56rem)]">
                     <DrawerHeader className="flex flex-row items-start justify-between text-left">
                       <div className="flex items-start flex-col gap-0.5">
-                        <DrawerTitle>Settings</DrawerTitle>
+                        <DrawerTitle>{t("settings.title")}</DrawerTitle>
                         <DrawerDescription>
-                          App preferences — stored locally.
+                          {t("settings.description")}
                         </DrawerDescription>
                       </div>
                       <DrawerClose asChild>
@@ -822,8 +825,8 @@ export default function App() {
                         data-vaul-no-drag
                       >
                         <SettingsRow
-                          title="Theme"
-                          description="Toggle dark / light"
+                          title={t("settings.theme.title")}
+                          description={t("settings.theme.description")}
                         >
                           <Button
                             variant="outline"
@@ -832,33 +835,33 @@ export default function App() {
                           >
                             {dark ? (
                               <>
-                                <Sun /> Light
+                                <Sun /> {t("settings.theme.light")}
                               </>
                             ) : (
                               <>
-                                <Moon /> Dark
+                                <Moon /> {t("settings.theme.dark")}
                               </>
                             )}
                           </Button>
                         </SettingsRow>
                         <SettingsRow
-                          title="Download folder"
-                          description={settings.folder ?? "Downloads (default)"}
+                          title={t("settings.folder.title")}
+                          description={settings.folder ?? t("settings.folder.default")}
                         >
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={handlePickFolder}
                           >
-                            Change
+                            {t("settings.folder.change")}
                           </Button>
                         </SettingsRow>
                         <SettingsRow
-                          title="Sign-in cookies"
+                          title={t("settings.cookies.title")}
                           description={
                             settings.cookiesBrowser === "file"
-                              ? (settings.cookiesFile ?? "No file picked yet")
-                              : "Use a browser's cookies for private / age-restricted videos"
+                              ? (settings.cookiesFile ?? t("settings.cookies.noFile"))
+                              : t("settings.cookies.description")
                           }
                         >
                           <div className="flex items-center gap-2">
@@ -890,7 +893,7 @@ export default function App() {
                                   ) : (
                                     <ShieldCheck />
                                   )}
-                                  {cookieChecking ? "Checking…" : "Verify"}
+                                   {cookieChecking ? t("settings.cookies.checking") : t("settings.cookies.verify")}
                                 </Button>
                               )}
                             {settings.cookiesBrowser === "file" && (
@@ -899,14 +902,14 @@ export default function App() {
                                 size="sm"
                                 onClick={() => handleCookiesModeChange("file")}
                               >
-                                Change file
+                                {t("settings.cookies.changeFile")}
                               </Button>
                             )}
                           </div>
                         </SettingsRow>
                         <SettingsRow
-                          title="Background"
-                          description="Rings = shader (GPU) · Lite = static CSS"
+                          title={t("settings.background.title")}
+                          description={t("settings.background.description")}
                         >
                           <Select
                             value={bgMode}
@@ -918,18 +921,18 @@ export default function App() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="rings">Magic Rings</SelectItem>
-                              <SelectItem value="lite">Lite</SelectItem>
-                              <SelectItem value="off">Off</SelectItem>
+                              <SelectItem value="rings">{t("settings.background.rings")}</SelectItem>
+                              <SelectItem value="lite">{t("settings.background.lite")}</SelectItem>
+                              <SelectItem value="off">{t("settings.background.off")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </SettingsRow>
                         <SettingsRow
-                          title="Shiny text"
+                          title={t("settings.shiny.title")}
                           description={
                             reducedMotion
-                              ? "Disabled — your system requests reduced motion"
-                              : "Animated logo (per-frame)"
+                              ? t("settings.shiny.disabled")
+                              : t("settings.shiny.enabled")
                           }
                         >
                           <Switch
@@ -939,7 +942,7 @@ export default function App() {
                           />
                         </SettingsRow>
                         <SettingsRow
-                          title="Dependencies"
+                          title={t("settings.dependencies.title")}
                           description={depsMissingText}
                         >
                           <Button
@@ -948,13 +951,13 @@ export default function App() {
                             onClick={() => setDepsOpen(true)}
                           >
                             {deps && deps.hasYtdlp && deps.hasFfmpeg
-                              ? "View"
-                              : "Fix"}
+                              ? t("deps.view")
+                              : t("deps.fix")}
                           </Button>
                         </SettingsRow>
                         <SettingsRow
-                          title="History"
-                          description={`${history.length} saved`}
+                          title={t("settings.history.title")}
+                          description={t("settings.history.saved", { count: history.length })}
                         >
                           <Button
                             variant="outline"
@@ -965,7 +968,7 @@ export default function App() {
                               setClearHistoryOpen(true);
                             }}
                           >
-                            Clear all
+                            {t("settings.history.clearAll")}
                           </Button>
                         </SettingsRow>
                       </div>
@@ -1053,6 +1056,26 @@ export default function App() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => {
+                        const next = i18n.language === "ar" ? "en" : "ar";
+                        i18n.changeLanguage(next);
+                        localStorage.setItem("lang", next);
+                        document.documentElement.lang = next;
+                      }}
+                      aria-label="Toggle language"
+                    >
+                      <Globe />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {i18n.language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => setDark((d) => !d)}
                       aria-label="Toggle theme"
                     >
@@ -1077,10 +1100,10 @@ export default function App() {
                     onClick={() => setTab("download")}
                   >
                     <ArrowLeft className="size-3.5" />
-                    Download
+                    {t("tab.download")}
                   </Button>
                   <span className="text-foreground/40">/</span>
-                  <span className="text-foreground font-semibold">History</span>
+                  <span className="text-foreground font-semibold">{t("tab.history")}</span>
                   <span className="bg-muted rounded-full px-1.5 text-micro tabular-nums">
                     {history.length}
                   </span>
@@ -1089,7 +1112,7 @@ export default function App() {
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
                   <span className="text-foreground font-semibold">
-                    {searching ? "Searching YouTube…" : "Fetching video…"}
+                    {searching ? t("context.searching") : t("context.fetching")}
                   </span>
                 </>
               ) : !info && searchResults ? (
@@ -1100,7 +1123,7 @@ export default function App() {
                     onClick={() => setSearchResults(null)}
                   >
                     <ArrowLeft className="size-3.5" />
-                    Search
+                    {t("context.search")}
                   </Button>
                   <span className="text-foreground/40">/</span>
                   <span className="text-foreground line-clamp-1 font-medium">
@@ -1109,7 +1132,7 @@ export default function App() {
                 </>
               ) : !info ? (
                 <span className="text-foreground font-medium">
-                  Home — paste a link to start
+                  {t("context.home")}
                 </span>
               ) : (
                 <>
@@ -1119,7 +1142,7 @@ export default function App() {
                     onClick={handleReset}
                   >
                     <ArrowLeft className="size-3.5" />
-                    Back
+                    {t("context.back")}
                   </Button>
                   <span className="text-foreground/40">/</span>
                   <span className="text-foreground line-clamp-1 font-medium">
@@ -1158,12 +1181,12 @@ export default function App() {
                 >
                   <Loader2 className="text-primary size-8 animate-spin" />
                   <p className="text-foreground text-sm font-semibold">
-                    {searching ? "Searching YouTube…" : "Fetching video info…"}
+                    {searching ? t("context.searching") : t("context.fetching")}
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {searching
-                      ? "grabbing top results"
-                      : "grabbing thumbnail & file sizes"}
+                      ? t("context.grabbingResults")
+                      : t("context.grabbingInfo")}
                   </p>
                 </motion.div>
               ) : !info && searchResults ? (
@@ -1203,8 +1226,7 @@ export default function App() {
                     </span>
                   )}
                   <p className="text-muted-foreground max-w-sm text-center text-sm">
-                    Paste a link or switch to Search — preview the thumbnail and
-                    sizes, then pick exactly what you want.
+                    {t("hero.description")}
                   </p>
                   <div className="flex w-full max-w-lg flex-col gap-3">
                     {deps && depsMissing && (
@@ -1221,14 +1243,14 @@ export default function App() {
                           size="xs"
                           onClick={recheckDeps}
                         >
-                          Recheck
+                          {t("deps.recheck")}
                         </Button>
                         <Button
                           variant="outline"
                           size="xs"
                           onClick={() => setDepsOpen(true)}
                         >
-                          Fix it
+                          {t("deps.fixIt")}
                         </Button>
                       </div>
                     )}
@@ -1268,8 +1290,7 @@ export default function App() {
                   </div>
                   <SupportedSites />
                   <p className="text-muted-foreground text-micro">
-                    Enter fetches · Ctrl+L focuses this box anytime · drop a
-                    link anywhere in the window
+                    {t("hero.hint")}
                   </p>
                 </motion.div>
               ) : (
@@ -1392,8 +1413,8 @@ export default function App() {
               <AlertDialogHeader>
                 <AlertDialogTitle>
                   {downloading || queuedJobs.length > 0
-                    ? "Add to queue?"
-                    : "Start download?"}
+                    ? t("download.confirmQueue")
+                    : t("download.confirmTitle")}
                 </AlertDialogTitle>
                 <AlertDialogDescription asChild>
                   <div className="flex flex-col gap-3 text-left">
@@ -1401,35 +1422,35 @@ export default function App() {
                       {info?.title}
                     </p>
                     <div className="bg-muted/60 grid grid-cols-2 gap-2 rounded-lg border p-3 text-xs">
-                      <span className="text-muted-foreground">Mode</span>
+                      <span className="text-muted-foreground">{t("download.mode")}</span>
                       <span className="font-medium">{confirmLabel}</span>
                       <span className="text-muted-foreground">
-                        Estimated size
+                        {t("download.estimatedSize")}
                       </span>
                       <span className="font-medium tabular-nums">
                         {estimate != null && estimate > 0
                           ? `~${formatBytes(estimate)}`
                           : settings.playlist
-                            ? "playlist — varies"
+                            ? t("download.playlistVaries")
                             : "—"}
                       </span>
-                      <span className="text-muted-foreground">Folder</span>
+                      <span className="text-muted-foreground">{t("download.folder")}</span>
                       <span className="truncate font-medium">
-                        {settings.folder ?? "Downloads (default)"}
+                        {settings.folder ?? t("formatPicker.defaultFolder")}
                       </span>
                     </div>
                     <p className="text-muted-foreground text-xs">
                       {downloading || queuedJobs.length > 0
-                        ? "Something is already running — this will start when the queue is free."
-                        : "Sizes are estimates from available formats."}
+                        ? t("download.queueNote")
+                        : t("download.sizeNote")}
                     </p>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t("download.cancel")}</AlertDialogCancel>
                 <AlertDialogAction onClick={handleConfirmedDownload}>
-                  {downloading || queuedJobs.length > 0 ? "Queue" : "Download"}
+                  {downloading || queuedJobs.length > 0 ? t("download.queueBtn") : t("download.downloadBtn")}
                   {estimate ? ` · ~${formatBytes(estimate)}` : ""}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -1442,21 +1463,20 @@ export default function App() {
           >
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Clear all history?</AlertDialogTitle>
+                <AlertDialogTitle>{t("dialog.clearHistory")}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Removes all {history.length} entries. Downloaded files are not
-                  deleted.
+                  {t("dialog.clearHistoryDesc", { count: history.length })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Keep</AlertDialogCancel>
+                <AlertDialogCancel>{t("dialog.keep")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
                     persistHistory([]);
                     setClearHistoryOpen(false);
                   }}
                 >
-                  Clear all
+                  {t("settings.history.clearAll")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

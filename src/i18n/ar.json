@@ -1,0 +1,215 @@
+{
+  "tab": {
+    "download": "تنزيل",
+    "history": "السجل"
+  },
+  "hero": {
+    "description": " الصق رابط أو انتقل إلى البحث — شاهد الصورة المصغرة والأحجام، ثم اختر ما تريد بالضبط.",
+    "hint": "اضغط Enter للجلب · Ctrl+L يركز هذا الصندوق في أي وقت · اسحب رابطًا إلى أي مكان في النافذة"
+  },
+  "context": {
+    "home": "الرئيسية — الصق رابطًا للبدء",
+    "back": "رجوع",
+    "search": "بحث",
+    "fetching": "جارٍ جلب الفيديو…",
+    "searching": "جارٍ البحث في يوتيوب…",
+    "grabbingResults": "جارٍ جلب أفضل النتائج",
+    "grabbingInfo": "جارٍ جلب الصورة المصغرة والأحجام"
+  },
+  "deps": {
+    "checking": "جارٍ التحقق من الأدوات المطلوبة…",
+    "bothMissing": "يحتاج yt-dlp و ffmpeg — اضغط على إصلاح للتثبيت.",
+    "ytdlpMissing": "يحتاج yt-dlp لتنزيل الفيديوهات — اضغط على إصلاح للتثبيت.",
+    "ffmpegMissing": "يحتاج ffmpeg للصوت والدمج — اضغط على إصلاح للتثبيت.",
+    "ready": "yt-dlp + ffmpeg جاهز",
+    "okLabel": "المكتبات جاهزة — افتح التفاصيل",
+    "missingLabel": "مكتبات مفقودة — افتح حوار الإصلاح",
+    "recheck": "إعادة فحص",
+    "fixIt": "إصلاح",
+    "view": "عرض",
+    "fix": "إصلاح"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "description": "تفضيلات التطبيق — محفوظة محليًا.",
+    "theme": {
+      "title": "المظهر",
+      "description": "تبديل بين الداكن / الفاتح",
+      "light": "فاتح",
+      "dark": "داكن"
+    },
+    "folder": {
+      "title": "مجلد التنزيل",
+      "default": "التنزيلات (افتراضي)",
+      "change": "تغيير"
+    },
+    "cookies": {
+      "title": "ملفات تعريف ارتباط تسجيل الدخول",
+      "description": "استخدم ملفات تعريف ارتباط المتصفح للفيديوهات الخاصة / المحظورة",
+      "noFile": "لم يتم اختيار ملف بعد",
+      "verify": "تحقق",
+      "checking": "جارٍ التحقق…",
+      "changeFile": "تغيير الملف"
+    },
+    "background": {
+      "title": "الخلفية",
+      "description": "الحلقات = شيدر (GPU) · خفيف = CSS ثابت",
+      "rings": "حلقات سحرية",
+      "lite": "خفيف",
+      "off": "إيقاف"
+    },
+    "shiny": {
+      "title": "نص لامع",
+      "enabled": "شعار متحرك (لكل إطار)",
+      "disabled": "معطل — طلب النظام تقليل الحركة"
+    },
+    "dependencies": {
+      "title": "المكتبات"
+    },
+    "history": {
+      "title": "السجل",
+      "saved": "{{count}} محفوظ",
+      "clearAll": "مسح الكل"
+    },
+    "about": {
+      "builtWith": "بناه",
+      "createdBy": "أنشأه"
+    }
+  },
+  "formatPicker": {
+    "video": "فيديو",
+    "audio": "صوت",
+    "both": "كلاهما",
+    "thumbnail": "صورة مصغرة",
+    "quality": "الجودة",
+    "bitrate": "معدل البت",
+    "container": "الحاوية",
+    "format": "الصيغة",
+    "audioLabel": "الصوت",
+    "folder": "المجلد",
+    "saveThumbnail": "حفظ الصورة المصغرة",
+    "embedThumbnail": "دمج الصورة المصغرة",
+    "embedThumbnailWav": "دمج الصورة المصغرة (غير متاح لـ WAV)",
+    "embedMetadata": "دمج البيانات الوصفية",
+    "subtitles": "ترجمات (EN)",
+    "entirePlaylist": "قائمة التشغيل الكاملة",
+    "playlistHint": "وضع قائمة التشغيل — كل عنصر في القائمة يُنزَّل بهذه الإعدادات (الحجم غير معروف حتى يبدأ yt-dlp).",
+    "thumbnailHint": "يحفظ الصورة المصغرة بأعلى دقة كـ JPG — بدون تنزيل فيديو.",
+    "download": "تنزيل",
+    "downloadThumbnail": "تنزيل الصورة المصغرة",
+    "addToQueue": "إضافة إلى القائمة",
+    "addThumbnailToQueue": "إضافة الصورة المصغرة إلى القائمة",
+    "defaultFolder": "التنزيلات (افتراضي)"
+  },
+  "urlBar": {
+    "link": "رابط",
+    "search": "بحث",
+    "inputMode": "وضع الإدخال",
+    "placeholderSearch": "ابحث في يوتيوب — النتيجة الأولى تُفتح…",
+    "placeholderLink": "الصق رابط فيديو…",
+    "ariaSearch": "استعلام البحث",
+    "ariaLink": "رابط الفيديو",
+    "paste": "لصق من الحافظة",
+    "fetching": "جارٍ الجلب…",
+    "fetch": "جلب"
+  },
+  "download": {
+    "cancel": "إلغاء",
+    "dismiss": "تجاهل",
+    "queued": "{{count}} في القائمة",
+    "complete": "اكتمل التنزيل",
+    "failed": "فشل التنزيل",
+    "cancelled": "تم إلغاء التنزيل",
+    "video": "فيديو",
+    "audio": "صوت",
+    "thumbnail": "صورة مصغرة",
+    "videoBoth": "فيديو (1 من 2)",
+    "audioBoth": "صوت (2 من 2)",
+    "confirmTitle": "بدء التنزيل؟",
+    "confirmQueue": "إضافة إلى القائمة؟",
+    "mode": "الوضع",
+    "estimatedSize": "الحجم المقدر",
+    "folder": "المجلد",
+    "queueNote": "شيء يعمل بالفعل — سيبدأ عندما تفتح القائمة.",
+    "sizeNote": "الأحجام تقديرات من الصيغ المتاحة.",
+    "queueBtn": "قائمة",
+    "downloadBtn": "تنزيل",
+    "playlistVaries": "قائمة تشغيل — متنوع"
+  },
+  "history": {
+    "empty": "لا توجد تنزيلات بعد — سيظهر سجلك هنا",
+    "count": "{{count}} تنزيل",
+    "countPlural": "{{count}} تنزيلات",
+    "clearAll": "مسح الكل",
+    "reDownload": "إعادة التنزيل",
+    "showInFolder": "عرض في المجلد",
+    "moreActions": "إجراءات أخرى",
+    "copyLink": "نسخ الرابط",
+    "remove": "إزالة من السجل",
+    "linkCopied": "تم نسخ الرابط"
+  },
+  "search": {
+    "resultsFor": "نتائج البحث عن",
+    "clear": "مسح",
+    "noResults": "لا توجد نتائج لـ \"{{query}}\".",
+    "entries": "عناصر",
+    "views": "مشاهدات"
+  },
+  "trim": {
+    "title": "قص",
+    "hint": "اسحب الطرفين لتقطيع قبل التنزيل",
+    "reset": "إعادة تعيين"
+  },
+  "supported": {
+    "worksWith": "يعمل مع",
+    "andMore": "+ كل موقع آخر يدعمه yt-dlp"
+  },
+  "toast": {
+    "historyLoadFailed": "تعذر تحميل السجل",
+    "downloadComplete": "اكتمل التنزيل",
+    "savedToFolder": "تم الحفظ في مجلد التنزيلات",
+    "downloadFailed": "فشل التنزيل",
+    "downloadFailedStart": "فشل بدء التنزيل",
+    "downloadCancelled": "تم إلغاء التنزيل",
+    "alreadyFinished": "هذا التنزيل انتهى بالفعل",
+    "depsFound": "تم العثور على جميع المكتبات",
+    "depsStillMissing": "المكتبات مفقودة بعد",
+    "depsCheckFailed": "تعذر التحقق من المكتبات",
+    "cookiesCleared": "تم مسح ملفات تعريف ارتباط تسجيل الدخول",
+    "cookiesReadFrom": "سيتم قراءة ملفات تعريف الارتباط من {{browser}}",
+    "cookiesSelected": "تم اختيار cookies.txt",
+    "noFilePicked": "لم يتم اختيار ملف — تسجيل الدخول لم يتغير",
+    "cookiesLoaded": "تم تحميل ملفات تعريف الارتباط",
+    "cookieCheckFailed": "فشل التحقق من ملفات تعريف الارتباط",
+    "copiedToClipboard": "تم النسخ إلى الحافظة",
+    "unknownError": "خطأ غير معروف — راجع التطبيق للتفاصيل"
+  },
+  "dialog": {
+    "depsReady": "جميع المكتبات جاهزة",
+    "depsReadyDesc": "تم اكتشاف yt-dlp و ffmpeg. يمكنك إغلاق هذا وبدء التنزيل.",
+    "depsMissing": "إعداد مطلوب — أدوات مفقودة",
+    "depsMissingDesc": "يحتاج ytdl-gui أداتين مجانيتين للعمل. ثبتهما مرة واحدة وأنت جاهز — لا حاجة لخبرة تقنية.",
+    "found": "موجود",
+    "missing": "مفقود",
+    "recheckDesc": "إعادة الفحص تقرأ PATH من السجل — التثبيتات تظهر بدون إعادة تشغيل التطبيق.",
+    "updateYtdlp": "تحديث yt-dlp",
+    "updating": "جارٍ التحديث…",
+    "continue": "متابعة",
+    "clearHistory": "مسح كل السجل؟",
+    "clearHistoryDesc": "يزيل {{count}} عنصرًا. الملفات المنزّلة لا تُحذف.",
+    "keep": "إبقاء"
+  },
+  "videoCard": {
+    "playlist": "قائمة تشغيل",
+    "entries": "{{count}} عناصر",
+    "views": "{{count}} مشاهدات"
+  },
+  "notification": {
+    "downloadComplete": "اكتمل التنزيل",
+    "downloadFailed": "فشل التنزيل"
+  },
+  "lang": {
+    "en": "English",
+    "ar": "العربية"
+  }
+}

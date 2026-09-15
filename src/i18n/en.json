@@ -1,0 +1,215 @@
+{
+  "tab": {
+    "download": "Download",
+    "history": "History"
+  },
+  "hero": {
+    "description": "Paste a link or switch to Search — preview the thumbnail and sizes, then pick exactly what you want.",
+    "hint": "Enter fetches · Ctrl+L focuses this box anytime · drop a link anywhere in the window"
+  },
+  "context": {
+    "home": "Home — paste a link to start",
+    "back": "Back",
+    "search": "Search",
+    "fetching": "Fetching video…",
+    "searching": "Searching YouTube…",
+    "grabbingResults": "grabbing top results",
+    "grabbingInfo": "grabbing thumbnail & file sizes"
+  },
+  "deps": {
+    "checking": "Checking for required tools…",
+    "bothMissing": "yt-dlp and ffmpeg are needed — click Fix it to install.",
+    "ytdlpMissing": "yt-dlp is needed to download videos — click Fix it to install.",
+    "ffmpegMissing": "ffmpeg is needed for audio and merging — click Fix it to install.",
+    "ready": "yt-dlp + ffmpeg ready",
+    "okLabel": "Dependencies OK — open details",
+    "missingLabel": "Missing dependencies — open fix dialog",
+    "recheck": "Recheck",
+    "fixIt": "Fix it",
+    "view": "View",
+    "fix": "Fix"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "App preferences — stored locally.",
+    "theme": {
+      "title": "Theme",
+      "description": "Toggle dark / light",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "folder": {
+      "title": "Download folder",
+      "default": "Downloads (default)",
+      "change": "Change"
+    },
+    "cookies": {
+      "title": "Sign-in cookies",
+      "description": "Use a browser's cookies for private / age-restricted videos",
+      "noFile": "No file picked yet",
+      "verify": "Verify",
+      "checking": "Checking…",
+      "changeFile": "Change file"
+    },
+    "background": {
+      "title": "Background",
+      "description": "Rings = shader (GPU) · Lite = static CSS",
+      "rings": "Magic Rings",
+      "lite": "Lite",
+      "off": "Off"
+    },
+    "shiny": {
+      "title": "Shiny text",
+      "enabled": "Animated logo (per-frame)",
+      "disabled": "Disabled — your system requests reduced motion"
+    },
+    "dependencies": {
+      "title": "Dependencies"
+    },
+    "history": {
+      "title": "History",
+      "saved": "{{count}} saved",
+      "clearAll": "Clear all"
+    },
+    "about": {
+      "builtWith": "Built with",
+      "createdBy": "Created by"
+    }
+  },
+  "formatPicker": {
+    "video": "Video",
+    "audio": "Audio",
+    "both": "Both",
+    "thumbnail": "Thumbnail",
+    "quality": "Quality",
+    "bitrate": "Bitrate",
+    "container": "Container",
+    "format": "Format",
+    "audioLabel": "Audio",
+    "folder": "Folder",
+    "saveThumbnail": "Save thumbnail",
+    "embedThumbnail": "Embed thumbnail",
+    "embedThumbnailWav": "Embed thumbnail (n/a for WAV)",
+    "embedMetadata": "Embed metadata",
+    "subtitles": "Subtitles (EN)",
+    "entirePlaylist": "Entire playlist",
+    "playlistHint": "Playlist mode — every entry in the list downloads with these settings (size unknown until yt-dlp starts).",
+    "thumbnailHint": "Saves the highest-resolution thumbnail as JPG — no video download.",
+    "download": "Download",
+    "downloadThumbnail": "Download thumbnail",
+    "addToQueue": "Add to queue",
+    "addThumbnailToQueue": "Add thumbnail to queue",
+    "defaultFolder": "Downloads (default)"
+  },
+  "urlBar": {
+    "link": "Link",
+    "search": "Search",
+    "inputMode": "Input mode",
+    "placeholderSearch": "Search YouTube — the top result opens…",
+    "placeholderLink": "Paste a video URL…",
+    "ariaSearch": "Search query",
+    "ariaLink": "Video URL",
+    "paste": "Paste from clipboard",
+    "fetching": "Fetching…",
+    "fetch": "Fetch"
+  },
+  "download": {
+    "cancel": "Cancel",
+    "dismiss": "Dismiss",
+    "queued": "{{count}} queued",
+    "complete": "Download complete",
+    "failed": "Download failed",
+    "cancelled": "Download cancelled",
+    "video": "Video",
+    "audio": "Audio",
+    "thumbnail": "Thumbnail",
+    "videoBoth": "Video (1 of 2)",
+    "audioBoth": "Audio (2 of 2)",
+    "confirmTitle": "Start download?",
+    "confirmQueue": "Add to queue?",
+    "mode": "Mode",
+    "estimatedSize": "Estimated size",
+    "folder": "Folder",
+    "queueNote": "Something is already running — this will start when the queue is free.",
+    "sizeNote": "Sizes are estimates from available formats.",
+    "queueBtn": "Queue",
+    "downloadBtn": "Download",
+    "playlistVaries": "playlist — varies"
+  },
+  "history": {
+    "empty": "No downloads yet — your history will appear here",
+    "count": "{{count}} download",
+    "countPlural": "{{count}} downloads",
+    "clearAll": "Clear all",
+    "reDownload": "Re-download",
+    "showInFolder": "Show in folder",
+    "moreActions": "More actions",
+    "copyLink": "Copy link",
+    "remove": "Remove from history",
+    "linkCopied": "Link copied"
+  },
+  "search": {
+    "resultsFor": "Results for",
+    "clear": "Clear",
+    "noResults": "No results for \"{{query}}\".",
+    "entries": "entries",
+    "views": "views"
+  },
+  "trim": {
+    "title": "Trim",
+    "hint": "Drag both ends to slice before downloading",
+    "reset": "Reset"
+  },
+  "supported": {
+    "worksWith": "Works with",
+    "andMore": "+ every other yt-dlp site"
+  },
+  "toast": {
+    "historyLoadFailed": "History could not be loaded",
+    "downloadComplete": "Download complete",
+    "savedToFolder": "Saved to your download folder",
+    "downloadFailed": "Download failed",
+    "downloadFailedStart": "Download failed to start",
+    "downloadCancelled": "Download cancelled",
+    "alreadyFinished": "That download already finished",
+    "depsFound": "All dependencies found",
+    "depsStillMissing": "Still missing dependencies",
+    "depsCheckFailed": "Could not check dependencies",
+    "cookiesCleared": "Sign-in cookies cleared",
+    "cookiesReadFrom": "Cookies will be read from {{browser}}",
+    "cookiesSelected": "cookies.txt selected",
+    "noFilePicked": "No file picked — sign-in unchanged",
+    "cookiesLoaded": "Cookies loaded",
+    "cookieCheckFailed": "Cookie check failed",
+    "copiedToClipboard": "Copied to clipboard",
+    "unknownError": "Unknown error — see the app for details"
+  },
+  "dialog": {
+    "depsReady": "All dependencies ready",
+    "depsReadyDesc": "yt-dlp and ffmpeg are detected. You can close this and start downloading.",
+    "depsMissing": "Setup needed — missing tools",
+    "depsMissingDesc": "ytdl-gui needs two free tools to work. Install them once and you're all set — no technical knowledge required.",
+    "found": "Found",
+    "missing": "Missing",
+    "recheckDesc": "Recheck re-reads your PATH from the registry — installs show up without restarting the app.",
+    "updateYtdlp": "Update yt-dlp",
+    "updating": "Updating…",
+    "continue": "Continue",
+    "clearHistory": "Clear all history?",
+    "clearHistoryDesc": "Removes all {{count}} entries. Downloaded files are not deleted.",
+    "keep": "Keep"
+  },
+  "videoCard": {
+    "playlist": "Playlist",
+    "entries": "{{count}} entries",
+    "views": "{{count}} views"
+  },
+  "notification": {
+    "downloadComplete": "Download complete",
+    "downloadFailed": "Download failed"
+  },
+  "lang": {
+    "en": "English",
+    "ar": "العربية"
+  }
+}

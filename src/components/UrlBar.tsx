@@ -1,5 +1,6 @@
 import { ClipboardPaste, Globe, Loader2, Search } from "lucide-react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +30,7 @@ export function UrlBar({
   mode,
   onModeChange,
 }: UrlBarProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFetch() {
@@ -50,7 +52,7 @@ export function UrlBar({
     <div className="flex w-full flex-col gap-2">
       <div
         role="group"
-        aria-label="Input mode"
+        aria-label={t("urlBar.inputMode")}
         className="border-border inline-flex w-fit items-center gap-0.5 rounded-full border p-0.5"
       >
         <Button
@@ -61,7 +63,7 @@ export function UrlBar({
           onClick={() => onModeChange("link")}
         >
           <Globe />
-          Link
+          {t("urlBar.link")}
         </Button>
         <Button
           size="xs"
@@ -71,7 +73,7 @@ export function UrlBar({
           onClick={() => onModeChange("search")}
         >
           <Search />
-          Search
+          {t("urlBar.search")}
         </Button>
       </div>
       <div className="flex w-full gap-2">
@@ -83,10 +85,10 @@ export function UrlBar({
           onKeyDown={(e) => e.key === "Enter" && handleFetch()}
           placeholder={
             mode === "search"
-              ? "Search YouTube — the top result opens…"
-              : "Paste a video URL…"
+              ? t("urlBar.placeholderSearch")
+              : t("urlBar.placeholderLink")
           }
-          aria-label={mode === "search" ? "Search query" : "Video URL"}
+          aria-label={mode === "search" ? t("urlBar.ariaSearch") : t("urlBar.ariaLink")}
           className="h-11 flex-1 text-base"
           autoFocus
           spellCheck={false}
@@ -97,12 +99,12 @@ export function UrlBar({
               variant="outline"
               size="icon-lg"
               onClick={handlePaste}
-              aria-label="Paste from clipboard"
+              aria-label={t("urlBar.paste")}
             >
               <ClipboardPaste />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Paste from clipboard</TooltipContent>
+          <TooltipContent side="bottom">{t("urlBar.paste")}</TooltipContent>
         </Tooltip>
         <Button
           size="lg"
@@ -113,17 +115,17 @@ export function UrlBar({
           {loading ? (
             <>
               <Loader2 />
-              Fetching…
+              {t("urlBar.fetching")}
             </>
           ) : mode === "search" ? (
             <>
               <Search />
-              Search
+              {t("urlBar.search")}
             </>
           ) : (
             <>
               <Globe />
-              Fetch
+              {t("urlBar.fetch")}
             </>
           )}
         </Button>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,15 +13,16 @@ interface SearchResultsProps {
 }
 
 export function SearchResults({ results, query, onPick, onClear }: SearchResultsProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex shrink-0 items-center justify-between gap-2">
         <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
           <Search className="size-3.5" />
-          Results for <span className="text-foreground font-medium">“{query}”</span>
+          {t("search.resultsFor")} <span className="text-foreground font-medium">“{query}”</span>
         </p>
         <Button variant="ghost" size="xs" onClick={onClear}>
-          Clear
+          {t("search.clear")}
         </Button>
       </div>
       <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-3">

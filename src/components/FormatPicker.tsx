@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Download,
   FileVideo,
@@ -41,17 +42,6 @@ interface FormatPickerProps {
   queued: boolean;
 }
 
-const MODES: {
-  value: DownloadMode;
-  label: string;
-  icon: typeof FileVideo;
-}[] = [
-  { value: "video", label: "Video", icon: FileVideo },
-  { value: "audio", label: "Audio", icon: Music },
-  { value: "both", label: "Both", icon: Package },
-  { value: "thumbnail", label: "Thumbnail", icon: ImageDown },
-];
-
 export function FormatPicker({
   settings,
   onChange,
@@ -61,20 +51,33 @@ export function FormatPicker({
   estimate,
   queued,
 }: FormatPickerProps) {
+  const { t } = useTranslation();
+
+  const MODES: {
+    value: DownloadMode;
+    label: string;
+    icon: typeof FileVideo;
+  }[] = [
+    { value: "video", label: t("formatPicker.video"), icon: FileVideo },
+    { value: "audio", label: t("formatPicker.audio"), icon: Music },
+    { value: "both", label: t("formatPicker.both"), icon: Package },
+    { value: "thumbnail", label: t("formatPicker.thumbnail"), icon: ImageDown },
+  ];
+
   const isThumbnail = settings.mode === "thumbnail";
   const isAudioOnly = settings.mode === "audio";
   const both = settings.mode === "both";
 
   const extras: { key: keyof FormatSettings; label: string; hint?: string; enabled: boolean }[] = [
-    { key: "saveThumbnail", label: "Save thumbnail", enabled: !isThumbnail },
+    { key: "saveThumbnail", label: t("formatPicker.saveThumbnail"), enabled: !isThumbnail },
     {
       key: "embedThumbnail",
-      label: isAudioOnly && settings.audioFormat === "wav" ? "Embed thumbnail (n/a for WAV)" : "Embed thumbnail",
+      label: isAudioOnly && settings.audioFormat === "wav" ? t("formatPicker.embedThumbnailWav") : t("formatPicker.embedThumbnail"),
       enabled: !(isThumbnail || (isAudioOnly && settings.audioFormat === "wav")),
     },
-    { key: "embedMetadata", label: "Embed metadata", enabled: !isThumbnail },
-    { key: "subtitles", label: "Subtitles (EN)", enabled: !isThumbnail },
-    { key: "playlist", label: "Entire playlist", enabled: !isThumbnail },
+    { key: "embedMetadata", label: t("formatPicker.embedMetadata"), enabled: !isThumbnail },
+    { key: "subtitles", label: t("formatPicker.subtitles"), enabled: !isThumbnail },
+    { key: "playlist", label: t("formatPicker.entirePlaylist"), enabled: !isThumbnail },
   ];
 
   return (
@@ -97,15 +100,14 @@ export function FormatPicker({
 
       {settings.playlist && (
         <p className="text-muted-foreground -mt-2 text-xs">
-          Playlist mode — every entry in the list downloads with these
-          settings (size unknown until yt-dlp starts).
+          {t("formatPicker.playlistHint")}
         </p>
       )}
 
       {!isThumbnail ? (
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <span className="text-foreground w-16 text-sm">
-            {isAudioOnly ? "Bitrate" : "Quality"}
+            {isAudioOnly ? t("formatPicker.bitrate") : t("formatPicker.quality")}
           </span>
           <Select
             value={isAudioOnly ? String(settings.audioBitrate) : String(settings.quality)}
@@ -137,7 +139,7 @@ export function FormatPicker({
 
           {both && (
             <>
-              <span className="text-foreground w-16 text-sm">Audio</span>
+              <span className="text-foreground w-16 text-sm">{t("formatPicker.audioLabel")}</span>
               <div className="flex min-w-0 items-center gap-2">
                 <Select
                   value={String(settings.audioBitrate)}
@@ -177,7 +179,7 @@ export function FormatPicker({
           )}
 
           <span className="text-foreground w-16 text-sm">
-            {isAudioOnly ? "Format" : "Container"}
+            {isAudioOnly ? t("formatPicker.format") : t("formatPicker.container")}
           </span>
           {isAudioOnly ? (
             <Select
@@ -228,7 +230,7 @@ export function FormatPicker({
 
       {isThumbnail && (
         <p className="text-muted-foreground text-center text-xs">
-          Saves the highest-resolution thumbnail as JPG — no video download.
+          {t("formatPicker.thumbnailHint")}
         </p>
       )}
 
@@ -258,11 +260,11 @@ export function FormatPicker({
         <Download className="size-5" />
         {isThumbnail
           ? queued
-            ? "Add thumbnail to queue"
-            : "Download thumbnail"
+            ? t("formatPicker.addThumbnailToQueue")
+            : t("formatPicker.downloadThumbnail")
           : queued
-            ? "Add to queue"
-            : "Download"}
+            ? t("formatPicker.addToQueue")
+            : t("formatPicker.download")}
       </Button>
     </div>
   );
@@ -277,9 +279,10 @@ function FolderRow({
   busy: boolean;
   onPickFolder: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <span className="text-foreground w-16 text-sm">Folder</span>
+      <span className="text-foreground w-16 text-sm">{t("formatPicker.folder")}</span>
       <Button
         variant="outline"
         className="col-span-2 w-full justify-start font-normal"
@@ -287,7 +290,7 @@ function FolderRow({
         disabled={busy}
       >
         <FolderOpen />
-        <span className="truncate">{settings.folder ?? "Downloads (default)"}</span>
+        <span className="truncate">{settings.folder ?? t("formatPicker.defaultFolder")}</span>
       </Button>
     </>
   );

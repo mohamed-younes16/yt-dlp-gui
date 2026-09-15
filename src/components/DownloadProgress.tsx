@@ -1,5 +1,6 @@
 import { CheckCircle2, ChevronDown, ChevronUp, ListMusic, Loader2, X, XCircle } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -14,18 +15,6 @@ interface DownloadStatusBarProps {
   onDismiss: (id: string) => void;
 }
 
-function phaseLabel(job: DownloadJob): string {
-  const both = job.settings.mode === "both";
-  switch (job.phase) {
-    case "audio":
-      return both ? "Audio (2 of 2)" : "Audio";
-    case "thumbnail":
-      return "Thumbnail";
-    default:
-      return both ? "Video (1 of 2)" : "Video";
-  }
-}
-
 export function DownloadStatusBar({
   job,
   queueCount,
@@ -33,6 +22,20 @@ export function DownloadStatusBar({
   onCancel,
   onDismiss,
 }: DownloadStatusBarProps) {
+  const { t } = useTranslation();
+
+  function phaseLabel(job: DownloadJob): string {
+    const both = job.settings.mode === "both";
+    switch (job.phase) {
+      case "audio":
+        return both ? t("download.audioBoth") : t("download.audio");
+      case "thumbnail":
+        return t("download.thumbnail");
+      default:
+        return both ? t("download.videoBoth") : t("download.video");
+    }
+  }
+
   const active = job.status === "starting" || job.status === "downloading";
   const percent = Math.min(job.percent, 100);
   const [queueOpen, setQueueOpen] = useState(false);
@@ -50,11 +53,11 @@ export function DownloadStatusBar({
           )}
           <span className="min-w-0 truncate font-medium">
             {job.status === "done"
-              ? fileNameOf(job.file) || "Download complete"
+              ? fileNameOf(job.file) || t("download.complete")
               : job.status === "error"
-                ? job.message || "Download failed"
+                ? job.message || t("download.failed")
                 : job.status === "cancelled"
-                  ? "Download cancelled"
+                  ? t("download.cancelled")
                   : job.info.title}
           </span>
           {active && (
@@ -71,7 +74,7 @@ export function DownloadStatusBar({
               onClick={() => setQueueOpen((o) => !o)}
             >
               <ListMusic className="size-3" />
-              {queueCount} queued
+              {t("download.queued", { count: queueCount })}
               {queueOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
             </button>
           )}
@@ -83,7 +86,7 @@ export function DownloadStatusBar({
               onClick={() => onCancel(job.id)}
             >
               <X />
-              Cancel
+              {t("download.cancel")}
             </Button>
           ) : (
             <Button
@@ -91,10 +94,10 @@ export function DownloadStatusBar({
               size="xs"
               className={queueCount > 0 ? "" : "ml-auto"}
               onClick={() => onDismiss(job.id)}
-              aria-label="Dismiss"
+              aria-label={t("download.dismiss")}
             >
               <X />
-              Dismiss
+              {t("download.dismiss")}
             </Button>
           )}
         </div>
@@ -118,7 +121,7 @@ export function DownloadStatusBar({
                   size="icon-xs"
                   className="shrink-0"
                   onClick={() => onCancel(q.id)}
-                  aria-label={`Cancel queued: ${q.info.title}`}
+                  aria-label={`${t("download.cancel")}: ${q.info.title}`}
                 >
                   <X className="size-3" />
                 </Button>

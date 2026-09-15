@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FolderOpen,
   History,
@@ -57,11 +58,13 @@ export function HistoryList({
   onRemove,
   onClearAll,
 }: HistoryListProps) {
+  const { t } = useTranslation();
+
   if (entries.length === 0) {
     return (
       <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 text-sm">
         <History className="size-8 opacity-50" />
-        No downloads yet — your history will appear here
+        {t("history.empty")}
       </div>
     );
   }
@@ -70,11 +73,11 @@ export function HistoryList({
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center justify-between">
         <p className="text-muted-foreground text-sm">
-          {entries.length} download{entries.length === 1 ? "" : "s"}
+          {entries.length === 1 ? t("history.count", { count: entries.length }) : t("history.countPlural", { count: entries.length })}
         </p>
         <Button variant="ghost" size="sm" onClick={onClearAll}>
           <Trash2 />
-          Clear all
+          {t("history.clearAll")}
         </Button>
       </div>
       <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-3">
@@ -105,6 +108,7 @@ function HistoryRow({
   onRedownload: (entry: HistoryEntry) => void;
   onRemove: (index: number) => void;
 }) {
+  const { t } = useTranslation();
   const [failed, setFailed] = useState(false);
   const src = !failed ? entry.thumbnail : thumbFallback(entry) ?? entry.thumbnail;
   const revealTarget = entry.path ?? entry.folder;
@@ -112,7 +116,7 @@ function HistoryRow({
   function copyLink() {
     navigator.clipboard
       .writeText(entry.url)
-      .then(() => toast.success("Link copied"))
+      .then(() => toast.success(t("history.linkCopied")))
       .catch(() => {});
   }
 
@@ -148,13 +152,13 @@ function HistoryRow({
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Re-download"
+              aria-label={t("history.reDownload")}
               onClick={() => onRedownload(entry)}
             >
               <RotateCcw />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top">Re-download</TooltipContent>
+          <TooltipContent side="top">{t("history.reDownload")}</TooltipContent>
         </Tooltip>
         {revealTarget && (
           <Tooltip>
@@ -162,29 +166,29 @@ function HistoryRow({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Show in folder"
+                aria-label={t("history.showInFolder")}
                 onClick={() => revealInFolder(revealTarget).catch(() => {})}
               >
                 <FolderOpen />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Show in folder</TooltipContent>
+            <TooltipContent side="top">{t("history.showInFolder")}</TooltipContent>
           </Tooltip>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More actions">
+            <Button variant="ghost" size="icon-sm" aria-label={t("history.moreActions")}>
               <MoreVertical />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={copyLink}>
               <Link2 />
-              Copy link
+              {t("history.copyLink")}
             </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onClick={() => onRemove(index)}>
               <Trash2 />
-              Remove from history
+              {t("history.remove")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

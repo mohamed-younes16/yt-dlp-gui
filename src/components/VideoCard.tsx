@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Eye, ThumbsUp, Clock, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +11,7 @@ import {
 } from "@/lib/types";
 
 export function VideoCard({ info }: { info: VideoInfo }) {
+  const { t } = useTranslation();
   const [fallback, setFallback] = useState(false);
   const isYoutube =
     info.url.includes("youtube.com") || info.url.includes("youtu.be");
@@ -41,7 +43,7 @@ export function VideoCard({ info }: { info: VideoInfo }) {
         </h3>
         {info.entryCount ? (
           <p className="text-muted-foreground text-sm">
-            Playlist · {info.entryCount} entries
+            {t("videoCard.playlist")} · {t("videoCard.entries", { count: info.entryCount })}
           </p>
         ) : null}
         {info.uploader && (
@@ -55,7 +57,7 @@ export function VideoCard({ info }: { info: VideoInfo }) {
           {info.viewCount !== undefined && info.viewCount > 0 && (
             <span className="flex items-center gap-1">
               <Eye className="size-3.5" />
-              {formatCount(info.viewCount)} views
+              {t("videoCard.views", { count: formatCount(info.viewCount) })}
             </span>
           )}
           {info.likeCount !== undefined && info.likeCount > 0 && (

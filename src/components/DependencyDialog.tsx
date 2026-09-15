@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   Copy,
@@ -20,11 +21,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import type { DependencyStatus } from "@/lib/tauri";
 import { updateYtdlp } from "@/lib/tauri";
+import i18n from "@/i18n";
 
 function copy(text: string) {
   navigator.clipboard
     .writeText(text)
-    .then(() => toast.success("Copied to clipboard"))
+    .then(() => toast.success(i18n.t("toast.copiedToClipboard")))
     .catch(() => {});
 }
 
@@ -58,6 +60,7 @@ function DepRow({
   version?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border p-4">
       <div className="flex items-center justify-between">
@@ -71,7 +74,7 @@ function DepRow({
           {version}
         </span>
         <Badge variant={ok ? "default" : "destructive"}>
-          {ok ? "Found" : "Missing"}
+          {ok ? t("dialog.found") : t("dialog.missing")}
         </Badge>
       </div>
       {!ok && (
@@ -94,6 +97,7 @@ export function DependencyDialog({
   onRecheck: () => void;
   onOpenChange?: (o: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const [updating, setUpdating] = useState(false);
   const hasYt = status?.hasYtdlp ?? false;
   const hasFf = status?.hasFfmpeg ?? false;
@@ -124,12 +128,12 @@ export function DependencyDialog({
             ) : (
               <AlertTriangle className="text-warning size-5" />
             )}
-            {allOk ? "All dependencies ready" : "Setup needed — missing tools"}
+            {allOk ? t("dialog.depsReady") : t("dialog.depsMissing")}
           </DialogTitle>
           <DialogDescription>
             {allOk
-              ? "yt-dlp and ffmpeg are detected. You can close this and start downloading."
-              : "ytdl-gui needs two free tools to work. Install them once and you're all set — no technical knowledge required."}
+              ? t("dialog.depsReadyDesc")
+              : t("dialog.depsMissingDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -211,8 +215,7 @@ export function DependencyDialog({
 
         <div className="flex items-center justify-between gap-2">
           <p className="text-muted-foreground text-xs">
-            Recheck re-reads your PATH from the registry — installs show up
-            without restarting the app.
+            {t("dialog.recheckDesc")}
           </p>
           <div className="flex shrink-0 gap-2">
             {hasYt && (
@@ -222,14 +225,14 @@ export function DependencyDialog({
                 disabled={updating}
               >
                 <RefreshCw className={updating ? "size-4 animate-spin" : "size-4"} />
-                {updating ? "Updating…" : "Update yt-dlp"}
+                {updating ? t("dialog.updating") : t("dialog.updateYtdlp")}
               </Button>
             )}
             <Button variant="outline" onClick={onRecheck}>
-              Recheck
+              {t("deps.recheck")}
             </Button>
             {allOk && (
-              <Button onClick={() => onOpenChange?.(false)}>Continue</Button>
+              <Button onClick={() => onOpenChange?.(false)}>{t("dialog.continue")}</Button>
             )}
           </div>
         </div>
