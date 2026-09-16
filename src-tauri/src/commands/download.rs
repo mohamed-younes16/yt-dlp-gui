@@ -250,12 +250,14 @@ pub fn sanitize_filename_stem(title: &str) -> String {
         return "video".to_string();
     }
     // Reserved DOS device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9).
+    // Windows forbids them even with an extension (CON.txt is illegal).
     const RESERVED: [&str; 22] = [
         "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6",
         "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6",
         "LPT7", "LPT8", "LPT9",
     ];
-    if RESERVED.contains(&s.to_ascii_uppercase().as_str()) {
+    let base_name = s.split('.').next().unwrap_or(&s).to_ascii_uppercase();
+    if RESERVED.contains(&base_name.as_str()) {
         s.push('_');
     }
     // Cap the stem so folder + ` [id].ext` can never approach MAX_PATH.
@@ -856,10 +858,29 @@ pub async fn start_download(
         return Err(format!("Unknown mode: {mode}"));
     }
 
-    let folder = folder
+    let mut folder = folder
         .filter(|f| !f.trim().is_empty())
         .unwrap_or_else(default_folder);
-    std::fs::create_dir_all(&folder).map_err(|e| format!("Cannot create folder {folder}: {e}"))?;
+    // Playlists go into their own subfolder so 20 files don't scatter across
+    // the user's Downloads root. Single videos stay flat.
+    let playlist_subfolder: Option<String> = if playlist {
+        let sub = sanitize_filename_stem(&title);
+        let p = std::path::Path::new(&folder).join(&sub).to_string_lossy().into_owned();
+        match std::fs::create_dir_all(&p) {
+            Ok(_) => { folder = p; Some(sub) },
+            Err(_) => {
+                // Exotic FS / 255-byte limit on narrow filename — retry ASCII.
+                let ascii = ascii_safe_stem(&title);
+                let p2 = std::path::Path::new(&folder).join(&ascii).to_string_lossy().into_owned();
+                std::fs::create_dir_all(&p2).map_err(|e| format!("Cannot create folder {p2}: {e}"))?;
+                folder = p2;
+                Some(ascii)
+            }
+        }
+    } else {
+        std::fs::create_dir_all(&folder).map_err(|e| format!("Cannot create folder {folder}: {e}"))?;
+        None
+    };
 
     let extras = extras_args(save_thumbnail, embed_thumbnail, embed_metadata, subtitles);
 
@@ -867,9 +888,15 @@ pub async fn start_download(
     // and immune to whatever yt-dlp would otherwise derive from raw metadata.
     // A pure-ASCII fallback rides along for one retry if the OS rejects the
     // pretty name (Errno 22 on exotic/legacy targets).
-    let template = output_template(&title);
-    let fallback = fallback_template(&title);
-    eprintln!("[ytdl-gui] download {id} mode={mode} template={template:?} fallback={fallback:?}");
+    // For playlists, use yt-dlp's per-entry %(title)s (inside our subfolder)
+    // so each video gets its own correct name instead of repeating the
+    // playlist title N times. Fallback is id-only so retry is always distinct.
+    let (template, fallback) = if playlist {
+        ( "%(title)s [%(id)s].%(ext)s".to_string(), "%(id)s.%(ext)s".to_string() )
+    } else {
+        ( output_template(&title), fallback_template(&title) )
+    };
+    eprintln!("[ytdl-gui] download {id} mode={mode} playlist={playlist} folder={folder:?} template={template:?} fallback={fallback:?}");
     let mut trim_args: Vec<String> = Vec::new();
     if let (Some(s), Some(e)) = (trim_start, trim_end) {
         if e > s && s >= 0.0 {

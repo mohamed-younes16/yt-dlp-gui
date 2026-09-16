@@ -76,7 +76,7 @@ export function UrlBar({
           {t("urlBar.search")}
         </Button>
       </div>
-      <div className="flex w-full gap-2">
+      <div className="flex w-full gap-2 min-w-0">
         <Input
           ref={inputRef}
           id="url-input"
@@ -89,7 +89,7 @@ export function UrlBar({
               : t("urlBar.placeholderLink")
           }
           aria-label={mode === "search" ? t("urlBar.ariaSearch") : t("urlBar.ariaLink")}
-          className="h-11 flex-1 text-base"
+          className="h-11 flex-1 min-w-0 text-base"
           autoFocus
           spellCheck={false}
         />
@@ -98,6 +98,7 @@ export function UrlBar({
             <Button
               variant="outline"
               size="icon-lg"
+              className="shrink-0"
               onClick={handlePaste}
               aria-label={t("urlBar.paste")}
             >
@@ -108,24 +109,24 @@ export function UrlBar({
         </Tooltip>
         <Button
           size="lg"
-          className="px-5"
+          className="px-5 shrink-0"
           onClick={handleFetch}
           disabled={disabled || loading || !value.trim()}
         >
           {loading ? (
             <>
               <Loader2 />
-              {t("urlBar.fetching")}
+              <span className="hidden sm:inline">{t("urlBar.fetching")}</span>
             </>
           ) : mode === "search" ? (
             <>
               <Search />
-              {t("urlBar.search")}
+              <span className="hidden sm:inline">{t("urlBar.search")}</span>
             </>
           ) : (
             <>
               <Globe />
-              {t("urlBar.fetch")}
+              <span className="hidden sm:inline">{t("urlBar.fetch")}</span>
             </>
           )}
         </Button>

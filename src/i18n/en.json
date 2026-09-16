@@ -93,7 +93,10 @@
     "embedMetadata": "Embed metadata",
     "subtitles": "Subtitles (EN)",
     "entirePlaylist": "Entire playlist",
+    "playlistShortHint": "Downloads every video in the playlist.",
     "playlistHint": "Playlist mode — every entry in the list downloads with these settings (size unknown until yt-dlp starts).",
+    "viewPlaylist": "View {{count}} videos",
+    "viewPlaylistGeneric": "View playlist",
     "thumbnailHint": "Saves the highest-resolution thumbnail as JPG — no video download.",
     "download": "Download",
     "downloadThumbnail": "Download thumbnail",
@@ -203,6 +206,18 @@
     "playlist": "Playlist",
     "entries": "{{count}} entries",
     "views": "{{count}} views"
+  },
+  "updateBanner": {
+    "available": "Update available: {{tag}}",
+    "viewRelease": "View release",
+    "dismiss": "Dismiss"
+  },
+  "playlistDialog": {
+    "title": "Playlist preview",
+    "showing": "Showing {{from}}–{{to}} of {{total}}",
+    "prev": "Prev",
+    "next": "Next",
+    "loading": "Loading playlist…"
   },
   "notification": {
     "downloadComplete": "Download complete",

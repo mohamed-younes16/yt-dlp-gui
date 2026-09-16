@@ -24,6 +24,16 @@ pub struct FormatEntry {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PlaylistEntry {
+    pub id: String,
+    pub title: String,
+    pub url: String,
+    pub duration: Option<f64>,
+    pub thumbnail: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VideoInfo {
     pub id: String,
     /// The real page URL from yt-dlp (`webpage_url`). Downloads and history
@@ -38,6 +48,11 @@ pub struct VideoInfo {
     pub thumbnail: Option<String>,
     pub entry_count: Option<u32>,
     pub formats: Vec<FormatEntry>,
+    /// Full playlist listing when `playlist=true` and the URL resolved to a
+    /// playlist (`--flat-playlist`). Omitted for single videos so the payload
+    /// stays small. Each entry is lightweight (no formats).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entries: Option<Vec<PlaylistEntry>>,
 }
 
 fn best_thumbnail(value: &serde_json::Value) -> Option<String> {
@@ -124,37 +139,86 @@ fn pick_source(value: &serde_json::Value) -> (serde_json::Value, Option<String>)
 }
 
 fn extract_info(value: &serde_json::Value, fallback_url: &str) -> VideoInfo {
+    let is_playlist = value.get("entries").and_then(|v| v.as_array()).is_some();
     let (source, _) = pick_source(value);
     let source = if source.is_null() {
         value.clone()
     } else {
         source
     };
-    let webpage_url = source["webpage_url"]
-        .as_str()
-        .or_else(|| source["url"].as_str())
+    // For playlists, the top-level object is the playlist itself — its title
+    // and uploader are the playlist's, not the first video's.
+    let (title_source, thumb_source, url_source) = if is_playlist { (value, value, value) } else { (&source, &source, &source) };
+    let webpage_url = url_source
+        .get("webpage_url")
+        .and_then(|v| v.as_str())
+        .or_else(|| url_source.get("url").and_then(|v| v.as_str()))
         .filter(|u| u.starts_with("http"))
+        .or_else(|| source.get("webpage_url").and_then(|v| v.as_str()).filter(|u| u.starts_with("http")))
         .unwrap_or(fallback_url)
         .to_string();
+    // When the top-level JSON is a playlist, expose every entry as a
+    // lightweight preview (title + url + duration). Single videos get None.
+    let entries: Option<Vec<PlaylistEntry>> = value
+        .get("entries")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|e| {
+                    if e.get("error").is_some() {
+                        return None;
+                    }
+                    let id = e["id"].as_str()?.to_string();
+                    let title = e["title"]
+                        .as_str()
+                        .or_else(|| e["alt_title"].as_str())
+                        .unwrap_or(&id)
+                        .to_string();
+                    let url = e["webpage_url"]
+                        .as_str()
+                        .or_else(|| e["url"].as_str())
+                        .filter(|u| u.starts_with("http"))
+                        .unwrap_or(fallback_url)
+                        .to_string();
+                    Some(PlaylistEntry {
+                        id,
+                        title,
+                        url,
+                        duration: e["duration"].as_f64().filter(|d| *d > 0.0 && d.is_finite()),
+                        thumbnail: best_thumbnail(e),
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .filter(|v| !v.is_empty());
     VideoInfo {
-        id: source["id"]
-            .as_str()
+        id: value
+            .get("id")
+            .and_then(|v| v.as_str())
             .filter(|s| !s.is_empty())
-            .unwrap_or("video")
+            .unwrap_or_else(|| source["id"].as_str().unwrap_or("video"))
             .to_string(),
         url: webpage_url,
-        title: source["title"].as_str().unwrap_or("Unknown title").to_string(),
-        uploader: source["uploader"]
-            .as_str()
+        title: title_source
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| source["title"].as_str().unwrap_or("Unknown title"))
+            .to_string(),
+        uploader: title_source
+            .get("uploader")
+            .and_then(|v| v.as_str())
+            .or_else(|| title_source.get("channel").and_then(|v| v.as_str()))
+            .or_else(|| source["uploader"].as_str())
             .or_else(|| source["channel"].as_str())
             .map(|s| s.to_string()),
-        duration: source["duration"].as_f64().filter(|d| *d > 0.0 && d.is_finite()),
-        view_count: source["view_count"].as_u64(),
-        like_count: source["like_count"].as_u64(),
-        upload_date: source["upload_date"].as_str().map(|s| s.to_string()),
-        thumbnail: best_thumbnail(&source),
-        entry_count: value["entries"].as_array().map(|a| a.len() as u32),
-        formats: extract_formats(&source),
+        duration: if is_playlist { None } else { source["duration"].as_f64().filter(|d| *d > 0.0 && d.is_finite()) },
+        view_count: if is_playlist { None } else { source["view_count"].as_u64() },
+        like_count: if is_playlist { None } else { source["like_count"].as_u64() },
+        upload_date: if is_playlist { None } else { source["upload_date"].as_str().map(|s| s.to_string()) },
+        thumbnail: best_thumbnail(thumb_source).or_else(|| best_thumbnail(&source)),
+        entry_count: entries.as_ref().map(|v| v.len() as u32),
+        formats: if is_playlist { vec![] } else { extract_formats(&source) },
+        entries,
     }
 }
 

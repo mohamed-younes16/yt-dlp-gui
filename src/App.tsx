@@ -31,10 +31,12 @@ import {
 import { DownloadStatusBar } from "@/components/DownloadProgress";
 import { FormatPicker } from "@/components/FormatPicker";
 import { HistoryList } from "@/components/HistoryList";
+import { PlaylistPreviewDialog } from "@/components/PlaylistPreviewDialog";
 import { SearchResults } from "@/components/SearchResults";
 import { SettingsRow } from "@/components/SettingsRow";
 import { SupportedSites } from "@/components/SupportedSites";
 import { TrimSlider } from "@/components/TrimSlider";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { UrlBar, type UrlBarMode } from "@/components/UrlBar";
 import { VideoCard } from "@/components/VideoCard";
 import { SpotlightCard } from "@/components/SpotlightCard";
@@ -88,6 +90,7 @@ import {
   loadHistory,
   pickCookiesFile,
   pickFolder,
+  revealInFolder,
   saveHistory,
   searchVideos,
   startDownload,
@@ -165,6 +168,9 @@ export default function App() {
   const [dark, setDark] = useState<boolean>(initialTheme);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [clearHistoryOpen, setClearHistoryOpen] = useState(false);
+  const [playlistPreviewOpen, setPlaylistPreviewOpen] = useState(false);
+  const [playlistPreviewLoading, setPlaylistPreviewLoading] = useState(false);
+  const [playlistToggling, setPlaylistToggling] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cookieChecking, setCookieChecking] = useState(false);
   const [ringColors, setRingColors] = useState(readRingColors);
@@ -182,13 +188,85 @@ export default function App() {
   const activeBg: "rings" | "lite" | "off" = reducedMotion ? "off" : bgMode;
   const activeShiny = reducedMotion ? false : shinyEnabled;
 
+  // Playlist detection: URL contains list param OR fetched info is a playlist.
+  // This handles watch?v=...&list=... which with playlist=false still fetches
+  // as single video (no entryCount) but should still offer the toggle.
+  const urlHasPlaylistParam = useMemo(() => {
+    const u = url.trim();
+    return u.includes("list=") || u.includes("/playlist");
+  }, [url]);
+  const isPlaylistContent = !!(info?.entryCount && info.entryCount > 1) || !!(info?.entries && info.entries.length > 1);
+  const showPlaylistToggle = urlHasPlaylistParam || isPlaylistContent;
+
+  // Keep toggle in sync silently when user flips it after a fetch — no
+  // full-screen flicker, just a tiny spinner on the row.
+  const prevPlaylistRef = useRef(settings.playlist);
+  const playlistToggleSeq = useRef(0);
+  useEffect(() => {
+    if (!info || fetching) return;
+    if (prevPlaylistRef.current === settings.playlist) return;
+    const prev = prevPlaylistRef.current;
+    prevPlaylistRef.current = settings.playlist;
+    // Don't refetch if we already have the right shape (e.g. toggled on and
+    // we already have entries, or toggled off and we already have formats).
+    const hasEntries = !!(info.entries && info.entries.length > 0);
+    const hasFormats = info.formats.length > 0;
+    if (settings.playlist && hasEntries) return;
+    if (!settings.playlist && hasFormats && !isPlaylistContent) return;
+    const target = url.split(/\s+/).filter(Boolean)[0] ?? info.url;
+    if (!target) return;
+    const seq = ++playlistToggleSeq.current;
+    setPlaylistToggling(true);
+    fetchMetadata(target, settings.playlist, settingsRef.current.cookiesBrowser, settingsRef.current.cookiesFile)
+      .then((fresh) => {
+        if (seq !== playlistToggleSeq.current) return;
+        setInfo(fresh);
+        // Trim only matters for single videos.
+        if (!settings.playlist && fresh.duration && fresh.duration > 1) {
+          setTrim([0, Math.floor(fresh.duration)]);
+        } else if (settings.playlist) {
+          setTrim(null);
+        }
+      })
+      .catch((err) => {
+        if (seq !== playlistToggleSeq.current) return;
+        // Revert toggle on failure so UI matches data.
+        prevPlaylistRef.current = prev;
+        setSettings((s) => ({ ...s, playlist: prev }));
+        toast.error(String(err).slice(0, 300));
+      })
+      .finally(() => {
+        if (seq === playlistToggleSeq.current) setPlaylistToggling(false);
+      });
+  }, [settings.playlist, info, fetching, url, isPlaylistContent]);
+
   const estimate = useMemo(() => {
     if (!info) return null;
     const base = estimateSize(info, settings.mode, settings.quality);
+    // Playlist rough total: if we have a real per-video base, multiply.
+    // If playlist fetch gave no formats (flat), fall back to bitrate × duration.
+    if (settings.playlist) {
+      const count =
+        (info.entryCount && info.entryCount > 1 ? info.entryCount : null) ??
+        (info.entries && info.entries.length > 1 ? info.entries.length : null);
+      if (count) {
+        if (base != null) return base * count;
+        // Fallback: quality → assumed tbr, × avg duration × count
+        const tbrByQuality: Record<number, number> = { 2160: 15000, 1440: 8000, 1080: 5000, 720: 2500, 480: 1500, 360: 1000 };
+        const tbr = tbrByQuality[settings.quality] ?? 2500;
+        const audioTbr = settings.audioBitrate ?? 128;
+        const totalTbr = settings.mode === "audio" ? audioTbr : settings.mode === "both" ? tbr + 2 * audioTbr : tbr + audioTbr;
+        let avgDur: number | null = null;
+        if (info.entries && info.entries.length > 0) {
+          const durs = info.entries.map((e) => e.duration).filter((d): d is number => !!d && d > 0);
+          if (durs.length > 0) avgDur = durs.reduce((a, b) => a + b, 0) / durs.length;
+        }
+        if (avgDur == null) avgDur = info.duration ?? 180;
+        if (avgDur > 0) return (totalTbr * 1000 * avgDur * count) / 8;
+      }
+    }
     if (base == null) return null;
-    // Trim-aware: scale by the selected duration fraction. Real bitrate is
-    // variable (VBR), so a 20s slice of a 60s video is only *roughly* a
-    // third of the bytes — good enough for a badge, not a promise.
+    // Trim-aware (single videos only): scale by the selected duration fraction.
     if (
       trim &&
       info.duration &&
@@ -273,6 +351,12 @@ export default function App() {
           description: p.file
             ? p.file.split(/[\\/]/).pop()
             : t("toast.savedToFolder"),
+          action: p.file
+            ? {
+                label: t("history.showInFolder"),
+                onClick: () => revealInFolder(p.file as string).catch(() => {}),
+              }
+            : undefined,
         });
         if (notifyOkRef.current) {
           sendNotification({
@@ -342,6 +426,7 @@ export default function App() {
 
   function recordDownload(job: DownloadJob, file?: string) {
     const s = job.settings;
+    const isPlaylist = s.playlist && (job.info.entryCount || job.info.entries?.length);
     const entry: HistoryEntry = {
       videoId: job.info.id,
       title: job.info.title,
@@ -349,7 +434,7 @@ export default function App() {
       channel: job.info.uploader,
       thumbnail: job.info.thumbnail,
       mode: s.mode,
-      qualityLabel: qualityLabel(s),
+      qualityLabel: isPlaylist ? `Playlist · ${job.info.entryCount ?? job.info.entries?.length ?? "?"} · ${qualityLabel(s)}` : qualityLabel(s),
       folder: s.folder ?? undefined,
       path: file,
       downloadedAt: Date.now(),
@@ -484,11 +569,44 @@ export default function App() {
     handleFetch(video.url);
   }
 
+  async function handlePreviewPlaylist() {
+    if (!info) return;
+    // Already have the listing — just open.
+    if (info.entries && info.entries.length > 0) {
+      setPlaylistPreviewOpen(true);
+      return;
+    }
+    // Entries not yet loaded (fetched with playlist off). Lazy-load them
+    // without replacing the whole screen — small spinner inside the dialog.
+    setPlaylistPreviewLoading(true);
+    setPlaylistPreviewOpen(true);
+    try {
+      const playlistInfo = await fetchMetadata(
+        info.url,
+        true,
+        settingsRef.current.cookiesBrowser,
+        settingsRef.current.cookiesFile,
+      );
+      // Keep the original preview's formats/duration but adopt the entries.
+      setInfo((prev) =>
+        prev && prev.url === info.url
+          ? { ...prev, entries: playlistInfo.entries, entryCount: playlistInfo.entryCount }
+          : prev,
+      );
+    } catch (err) {
+      toast.error(String(err).slice(0, 300));
+      setPlaylistPreviewOpen(false);
+    } finally {
+      setPlaylistPreviewLoading(false);
+    }
+  }
+
   function handleReset() {
     setInfo(null);
     setTrim(null);
     setFetchError(null);
     setSearchResults(null);
+    setPlaylistPreviewOpen(false);
     setTab("download");
   }
 
@@ -699,6 +817,7 @@ export default function App() {
           />
 
           <div className="relative mx-auto flex h-[90vh] w-full max-w-5xl flex-col rounded-xl bg-background/85 px-4 py-5 shadow-sm">
+            <UpdateBanner />
             {/* Top nav */}
             <header className="flex shrink-0 items-center justify-between gap-2 pb-4">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -1371,13 +1490,15 @@ export default function App() {
 
                   <FormatPicker
                     settings={settings}
-                    onChange={(patch) =>
-                      setSettings((s) => ({ ...s, ...patch }))
-                    }
+                    onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
                     busy={depsMissing}
                     queued={downloading || queuedJobs.length > 0}
                     onPickFolder={handlePickFolder}
                     onDownload={handleDownloadRequest}
+                    onPreviewPlaylist={handlePreviewPlaylist}
+                    playlistEntries={info.entries ?? null}
+                    playlistDetected={showPlaylistToggle}
+                    playlistToggling={playlistToggling}
                     estimate={estimate}
                   />
                 </motion.div>
@@ -1488,6 +1609,15 @@ export default function App() {
             onRecheck={recheckDeps}
             onOpenChange={setDepsOpen}
           />
+          {info && (
+            <PlaylistPreviewDialog
+              open={playlistPreviewOpen}
+              onOpenChange={setPlaylistPreviewOpen}
+              playlistTitle={info.title}
+              entries={info.entries ?? []}
+              loading={playlistPreviewLoading}
+            />
+          )}
           <Toaster
             position="bottom-center"
             richColors

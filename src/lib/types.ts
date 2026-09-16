@@ -11,9 +11,17 @@ export interface FormatEntry {
   tbr?: number;
 }
 
+export interface PlaylistEntry {
+  id: string;
+  title: string;
+  url: string;
+  duration?: number;
+  thumbnail?: string;
+}
+
 export interface VideoInfo {
   id: string;
-  /** Real page URL from yt-dlp — never fabricate a youtube.com/watch link. */
+  /** Real page URL from yt-dlp — never fabricate a youtube.com/watch?v= link. */
   url: string;
   title: string;
   uploader?: string;
@@ -24,6 +32,8 @@ export interface VideoInfo {
   thumbnail?: string;
   entryCount?: number;
   formats: FormatEntry[];
+  /** Full playlist listing when fetched with playlist=true (flat). Omitted for single videos. */
+  entries?: PlaylistEntry[];
 }
 
 export type DownloadMode = "video" | "audio" | "both" | "thumbnail";

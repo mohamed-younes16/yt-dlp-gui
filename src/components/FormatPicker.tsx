@@ -27,6 +27,7 @@ import {
   VIDEO_QUALITIES,
   type DownloadMode,
   type FormatSettings,
+  type PlaylistEntry,
 } from "@/lib/types";
 
 export type { FormatSettings };
@@ -37,6 +38,10 @@ interface FormatPickerProps {
   busy: boolean;
   onPickFolder: () => void;
   onDownload: () => void;
+  onPreviewPlaylist?: () => void;
+  playlistEntries?: PlaylistEntry[] | null;
+  playlistDetected?: boolean;
+  playlistToggling?: boolean;
   estimate?: number | null;
   /** True when something already runs — the button becomes "Add to queue". */
   queued: boolean;
@@ -48,6 +53,10 @@ export function FormatPicker({
   busy,
   onPickFolder,
   onDownload,
+  onPreviewPlaylist,
+  playlistEntries,
+  playlistDetected,
+  playlistToggling,
   estimate,
   queued,
 }: FormatPickerProps) {
@@ -77,8 +86,9 @@ export function FormatPicker({
     },
     { key: "embedMetadata", label: t("formatPicker.embedMetadata"), enabled: !isThumbnail },
     { key: "subtitles", label: t("formatPicker.subtitles"), enabled: !isThumbnail },
-    { key: "playlist", label: t("formatPicker.entirePlaylist"), enabled: !isThumbnail },
   ];
+
+  const isPlaylist = !!playlistDetected;
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,12 +107,6 @@ export function FormatPicker({
           </Button>
         ))}
       </div>
-
-      {settings.playlist && (
-        <p className="text-muted-foreground -mt-2 text-xs">
-          {t("formatPicker.playlistHint")}
-        </p>
-      )}
 
       {!isThumbnail ? (
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
@@ -249,6 +253,30 @@ export function FormatPicker({
               />
             ))}
           </div>
+          {isPlaylist && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+              <CheckboxCard
+                label={t("formatPicker.entirePlaylist")}
+                checked={settings.playlist}
+                enabled={!isThumbnail}
+                busy={busy || !!playlistToggling}
+                onCheckedChange={(v) => onChange({ playlist: v } as Partial<FormatSettings>)}
+              />
+              <span className="text-muted-foreground text-xs flex items-center gap-1.5">
+                {playlistToggling && <span className="size-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
+                {t("formatPicker.playlistShortHint")}
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                {onPreviewPlaylist && (
+                  <Button variant="default" size="xs" onClick={onPreviewPlaylist} disabled={!!playlistToggling}>
+                    {playlistEntries && playlistEntries.length > 0
+                      ? t("formatPicker.viewPlaylist", { count: playlistEntries.length })
+                      : t("formatPicker.viewPlaylistGeneric")}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 

@@ -93,7 +93,10 @@
     "embedMetadata": "دمج البيانات الوصفية",
     "subtitles": "ترجمات (EN)",
     "entirePlaylist": "قائمة التشغيل الكاملة",
+    "playlistShortHint": "يُنزّل كل فيديو في القائمة.",
     "playlistHint": "وضع قائمة التشغيل — كل عنصر في القائمة يُنزَّل بهذه الإعدادات (الحجم غير معروف حتى يبدأ yt-dlp).",
+    "viewPlaylist": "عرض {{count}} فيديو",
+    "viewPlaylistGeneric": "عرض قائمة التشغيل",
     "thumbnailHint": "يحفظ الصورة المصغرة بأعلى دقة كـ JPG — بدون تنزيل فيديو.",
     "download": "تنزيل",
     "downloadThumbnail": "تنزيل الصورة المصغرة",
@@ -203,6 +206,18 @@
     "playlist": "قائمة تشغيل",
     "entries": "{{count}} عناصر",
     "views": "{{count}} مشاهدات"
+  },
+  "updateBanner": {
+    "available": "تحديث متوفر: {{tag}}",
+    "viewRelease": "عرض الإصدار",
+    "dismiss": "تجاهل"
+  },
+  "playlistDialog": {
+    "title": "معاينة قائمة التشغيل",
+    "showing": "عرض {{from}}–{{to}} من {{total}}",
+    "prev": "السابق",
+    "next": "التالي",
+    "loading": "جارٍ تحميل قائمة التشغيل…"
   },
   "notification": {
     "downloadComplete": "اكتمل التنزيل",
