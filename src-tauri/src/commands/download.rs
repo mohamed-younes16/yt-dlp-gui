@@ -438,6 +438,37 @@ fn parse_progress_line(
     })
 }
 
+/// Arguments every yt-dlp download pass carries, whatever the mode:
+/// - `-P` + `-o`: our sanitized output location (never yt-dlp's raw title).
+/// - `--force-overwrites`: an explicit Download click must produce a fresh
+///   file with today's dates. Without it yt-dlp silently keeps a months-old
+///   file ("has already been downloaded", exit 0) and the app reports
+///   success — Created/Modified then look ancient.
+/// - `--no-mtime`: filesystem dates must mean "when you downloaded it".
+///   (Already yt-dlp's default, but pinned so a user config file enabling
+///   `--mtime` can't stamp files with the upload date behind our back.)
+fn base_args(url: &str, folder: &str, output_template: &str, playlist: bool) -> Vec<String> {
+    let mut full = vec![
+        url.to_string(),
+        "--newline".to_string(),
+        "-P".to_string(),
+        folder.to_string(),
+        // Our own sanitized name (never yt-dlp's raw %(title)s).
+        "-o".to_string(),
+        output_template.to_string(),
+        "--force-overwrites".to_string(),
+        "--no-mtime".to_string(),
+    ];
+    // Second layer: force Win32-legal names for anything else yt-dlp writes.
+    if cfg!(windows) {
+        full.push("--windows-filenames".to_string());
+    }
+    if !playlist {
+        full.push("--no-playlist".to_string());
+    }
+    full
+}
+
 fn read_pass(
     app: &AppHandle,
     state: &DownloadState,
@@ -451,22 +482,7 @@ fn read_pass(
     flags: &Arc<Flags>,
     last_file: &Arc<Mutex<Option<String>>>,
 ) -> PassOutcome {
-    let mut full = vec![
-        url.to_string(),
-        "--newline".to_string(),
-        "-P".to_string(),
-        folder.to_string(),
-        // Our own sanitized name (never yt-dlp's raw %(title)s).
-        "-o".to_string(),
-        output_template.to_string(),
-    ];
-    // Second layer: force Win32-legal names for anything else yt-dlp writes.
-    if cfg!(windows) {
-        full.push("--windows-filenames".to_string());
-    }
-    if !playlist {
-        full.push("--no-playlist".to_string());
-    }
+    let mut full = base_args(url, folder, output_template, playlist);
     full.extend(args);
     // Dev-terminal log AFTER assembly: the exact invocation, replayable
     // verbatim in a shell. No secrets here — only paths, flags, and the URL.
@@ -947,7 +963,7 @@ impl DownloadState {
 #[cfg(test)]
 mod progress_tests {
     use super::{
-        ascii_safe_stem, fallback_template, is_file_open_error, output_template,
+        ascii_safe_stem, base_args, fallback_template, is_file_open_error, output_template,
         parse_progress_line, sanitize_filename_stem, with_step,
     };
 
@@ -1058,5 +1074,20 @@ mod progress_tests {
             fallback_template("a | b"),
             "a _ b [%(id)s].%(ext)s"
         );
+    }
+
+    #[test]
+    fn base_args_pins_fresh_dates_and_overwrite() {
+        // Every explicit Download must produce a fresh file with today's
+        // dates — never silently keep a months-old file.
+        let a = base_args("https://x", "C:\\dl", "title [%(id)s].%(ext)s", false);
+        for flag in ["--force-overwrites", "--no-mtime", "--no-playlist"] {
+            assert!(a.contains(&flag.to_string()), "base_args missing {flag}");
+        }
+        // Playlists resolve to per-entry URLs — no flag to suppress them.
+        let p = base_args("https://x", "C:\\dl", "t", true);
+        assert!(!p.contains(&"--no-playlist".to_string()));
+        assert!(p.contains(&"--force-overwrites".to_string()));
+        assert!(p.contains(&"--no-mtime".to_string()));
     }
 }
